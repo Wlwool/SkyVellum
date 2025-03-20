@@ -3,7 +3,6 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from bot.config.config import Config
-from bot.database.models import User, WeatherData
 
 
 logger = logging.getLogger(__name__)
@@ -19,7 +18,7 @@ async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False
 
 async def setup_db():
     """Настройка базы данных при запуске бота"""
-
+    from bot.database.models import User, WeatherData
     async with engine.begin() as conn:
         logger.info("Создание таблиц в базе данных")
         await conn.run_sync(Base.metadata.create_all)
