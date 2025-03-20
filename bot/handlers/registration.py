@@ -25,7 +25,7 @@ async def register_command(message: types.Message, state: FSMContext) -> None:
 
 async def process_city(message: types.Message, state: FSMContext) -> None:
     """Функция обработки введенного города пользователем."""
-    city = message.text.strip().lower()
+    city = message.text.strip()
 
     # Проверка на наличие города через API погоды
     weather_api = WeatherAPI()
@@ -83,6 +83,5 @@ async def process_city(message: types.Message, state: FSMContext) -> None:
 
 def register_registration_handlers(dp: Dispatcher):
     """Функция регистрации обработчиков для регистрации пользователя."""
-    dp.message.register(register_command, F.text.casefold()=="регистрация")   # (startswith="👋", ignore_case=True)
+    dp.message.register(register_command, F.text=="Зарегистрироваться")
     dp.message.register(process_city, RegistrationForm.waiting_for_city)
-
