@@ -21,11 +21,11 @@ async def test_get_current_weather():
 async def test_get_forecast():
     """Тест получения прогноза погоды"""
     weather_api = WeatherAPI()
-    forecast_data = await weather_api.get_forecast("Moscow", days=3)
+    forecast_data = await weather_api.get_forecast("Москва", days=3)
 
     assert forecast_data is not None
     assert "city" in forecast_data
-    assert forecast_data["city"] == "Moscow"
+    assert forecast_data["city"] == "Москва"
     assert "forecast" in forecast_data
     assert len(forecast_data["forecast"]) >= 3
 
