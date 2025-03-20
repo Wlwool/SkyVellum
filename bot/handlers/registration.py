@@ -1,6 +1,6 @@
 import logging
 from aiogram import Dispatcher, types
-from aiogram.filters import Text
+from aiogram import F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from sqlalchemy.future import select
@@ -16,20 +16,20 @@ class RegistrationForm(StatesGroup):
     """Состояния FSM для регистрации пользователя."""
     waiting_for_city = State()
 
-async def register_command(message: types.Message, state: FSMContext):
+async def register_command(message: types.Message, state: FSMContext) -> None:
     """Функция обработки команды регистрации пользователя."""
     await message.answer("Для регистрации укажите свой город, чтобы я мог присылать вам информацию о погоде.",
                          reply_markup=types.ReplyKeyboardRemove())
 
     await state.set_state(RegistrationForm.waiting_for_city)
 
-async def process_city(message: types.Message, state: FSMContext):
+async def process_city(message: types.Message, state: FSMContext) -> None:
     """Функция обработки введенного города пользователем."""
     city = message.text.strip().lower()
 
     # Проверка на наличие города через API погоды
     weather_api = WeatherAPI()
-    weather_data = await weather_api.get_weather(city)
+    weather_data = await weather_api.get_current_weather(city)
 
     if not weather_data:
         await message.answer("Извините, но не удалось найти введенный вами город. "
@@ -45,7 +45,7 @@ async def process_city(message: types.Message, state: FSMContext):
 
     async with async_session() as session:
         # Проверка, зарегистрирован ли пользователь
-        stmt = select(User).where(User.user_id == user_id)
+        stmt = select(User).where(User.user_id == user_id)  # type: ignore
         result = await session.execute(stmt)
         existing_user = result.scalar_one_or_none()
 
@@ -83,6 +83,6 @@ async def process_city(message: types.Message, state: FSMContext):
 
 def register_registration_handlers(dp: Dispatcher):
     """Функция регистрации обработчиков для регистрации пользователя."""
-    dp.message.register(register_command, Text(text="Регистрация"))   # (startswith="👋", ignore_case=True)
+    dp.message.register(register_command, F.text.casefold()=="регистрация")   # (startswith="👋", ignore_case=True)
     dp.message.register(process_city, RegistrationForm.waiting_for_city)
 
