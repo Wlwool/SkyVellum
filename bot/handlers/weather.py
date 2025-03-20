@@ -2,6 +2,8 @@ import logging
 from aiogram import Dispatcher, types
 from aiogram import F
 from aiogram.fsm.context import FSMContext
+from datetime import datetime
+from pytz import timezone
 from sqlalchemy.future import select
 from bot.database.models import User, WeatherData
 from bot.database.database import async_session
@@ -16,6 +18,9 @@ weather_api = WeatherAPI()
 
 async def get_weather_now(message: types.Message) -> None:
     """Получение текущей информации о погоде"""
+    utc_time = message.date.astimezone(timezone('Europe/Moscow'))
+    formatted_time = utc_time.strftime('%H:%M:%S')
+
     user_id = message.from_user.id
 
     # получение данных о пользователе
@@ -60,48 +65,54 @@ async def get_weather_now(message: types.Message) -> None:
         f"💧 Влажность: {weather_data['humidity']}%\n"
         f"🌬️ Ветер: {weather_data['wind_speed']} м/с\n"
         f"🔍 {weather_data['description'].capitalize()}\n\n"
-        f"🕒 Данные обновлены: {message.date.strftime('%H:%M:%S')}"
+        f"🕒 Данные обновлены: {formatted_time}"  # message.date.strftime('%H:%M:%S')
     )
 
     await message.answer(weather_message, reply_markup=get_weather_keyboard())
 
 async def get_weather_forecast(message: types.Message) -> None:
     """Получение прогноза погоды на 5 дней"""
-    user_id = message.from_user.id
+    try:
+        user_id = message.from_user.id
 
-    # получение данных о пользователе
-    async with async_session() as session:
-        stmt = select(User).where(User.user_id == user_id)
-        result = await session.execute(stmt)
-        user = result.scalar_one_or_none()
+        # получение данных о пользователе
+        async with async_session() as session:
+            stmt = select(User).where(User.user_id == user_id)
+            result = await session.execute(stmt)
+            user = result.scalar_one_or_none()
 
-    if not user:
-        await message.answer("Вы еще не зарегистрированы. Пожалуйста, зарегистрируйтесь, чтобы получать прогноз погоды",
-                             reply_markup=get_start_keyboard(is_registered=False)
-                             )
-        return
-    # получение прогноза погоды для города, который был выбран пользователем
-    forecast_data = await weather_api.get_weather_forecast(user.city, days=5)
+        if not user:
+            await message.answer("Вы еще не зарегистрированы. Пожалуйста, зарегистрируйтесь, чтобы получать прогноз погоды",
+                                 reply_markup=get_start_keyboard(is_registered=False)
+                                 )
+            return
+        # получение прогноза погоды для города, который был выбран пользователем
+        forecast_data = await weather_api.get_forecast(user.city, days=5)
+        logger.info(f"Forecast data:{forecast_data}")
+        print(f"Forecast data - {forecast_data} -")
 
-    if not forecast_data:
-        await message.answer("Извините, ошибка получения данных о погоде. Попробуйте позже",
-                             reply_markup=get_weather_keyboard()
-                             )
-        return
+        if not forecast_data:
+            await message.answer("Извините, ошибка получения данных о погоде. Попробуйте позже",
+                                 reply_markup=get_weather_keyboard()
+                                 )
+            return
 
-    # ответное сообщение с прогнозом погоды пользователю
-    forecast_message = f"Прогноз погоды на 5 дней для города {forecast_data['city']} ({forecast_data['country']}):\n\n"
+        # ответное сообщение с прогнозом погоды пользователю
+        forecast_message = f"Прогноз погоды на 5 дней для города {forecast_data['city']} ({forecast_data['country']}):\n\n"
 
-    for forecast in forecast_data["forecasts"][:5]:  # Берем только первые 5 дней
-        date_str = forecast["date"].strftime("%d.%m")
-        forecast_message += (
-            f"📅 {date_str}:\n"
-            f"🌡️ Температура: {forecast['avg_temp']:.1f}°C (от {forecast['min_temp']:.1f}°C до {forecast['max_temp']:.1f}°C)\n"
-            f"💧 Влажность: {forecast['avg_humidity']:.0f}%\n"
-            f"🌬️ Ветер: {forecast['avg_wind']:.1f} м/с\n"
-            f"🔍 {forecast['description'].capitalize()}\n\n"
-        )
-    await message.answer(forecast_message, reply_markup=get_weather_keyboard())
+        for forecast in forecast_data["forecasts"][:5]:  # Берем только первые 5 дней
+            date_str = forecast["date"].strftime("%d.%m")
+            forecast_message += (
+                f"📅 {date_str}:\n"
+                f"🌡️ Температура: {forecast['avg_temp']:.1f}°C (от {forecast['min_temp']:.1f}°C до {forecast['max_temp']:.1f}°C)\n"
+                f"💧 Влажность: {forecast['avg_humidity']:.0f}%\n"
+                f"🌬️ Ветер: {forecast['avg_wind']:.1f} м/с\n"
+                f"🔍 {forecast['description'].capitalize()}\n\n"
+            )
+        await message.answer(forecast_message, reply_markup=get_weather_keyboard())
+    except Exception as e:
+        logger.error(f"Ошибка: {e}")
+        await message.answer("Произошла внутренняя ошибка при получении прогноза.")
 
 async def get_weekly_analysis(message: types.Message) -> None:
     """Получение недельного анализа погоды"""
@@ -158,14 +169,15 @@ async def get_weekly_analysis(message: types.Message) -> None:
 
     await message.answer(analysis_message, reply_markup=get_weather_keyboard())
 
-async def change_city(message: types.Message):
+async def change_city(message: types.Message, state: FSMContext):
     """Смена города"""
     from bot.handlers.registration import register_command
-    await register_command(message, FSMContext(message.bot.state_storage, message.chat.id, message.from_user.id))
+    await register_command(message, state)
+    # await register_command(message, FSMContext(message.bot.state_storage, message.chat.id, message.from_user.id))
 
 def register_weather_handlers(dp: Dispatcher):
     """Регистрация обработчиков команд для погоды"""
-    dp.message.register(get_weather_now, F.text.casefold() == "Погода сейчас")
-    dp.message.register(get_weather_forecast, F.text.casefold() == "Прогноз погоды на 5 дней")
-    dp.message.register(get_weekly_analysis, F.text.casefold == "Еженедельный анализ погоды")
-    dp.message.register(change_city, F.text.casefold()=="Изменить город")
+    dp.message.register(get_weather_now, F.text == "Погода сейчас")
+    dp.message.register(get_weather_forecast, F.text == "Погода на 5 дней")
+    dp.message.register(get_weekly_analysis, F.text == "Еженедельный анализ")
+    dp.message.register(change_city, F.text == "Изменить город")
