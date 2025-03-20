@@ -92,6 +92,8 @@ class WeatherAPI:
             weather = {
                 "city": data["name"],
                 "country": data["sys"]["country"],
+                "lat": data["coord"]["lat"],
+                "lon": data["coord"]["lon"],
                 "temperature": data["main"]["temp"],
                 "feels_like": data["main"]["feels_like"],
                 "pressure": data["main"]["pressure"],
