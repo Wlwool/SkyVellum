@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 weather_api = WeatherAPI()
 
 
-async def get_weather_now(message: types.Message):
+async def get_weather_now(message: types.Message) -> None:
     """Получение текущей информации о погоде"""
     user_id = message.from_user.id
 
@@ -64,7 +64,7 @@ async def get_weather_now(message: types.Message):
 
     await message.answer(weather_message, reply_markup=get_weather_keyboard())
 
-async def get_weather_forecast(message: types.Message):
+async def get_weather_forecast(message: types.Message) -> None:
     """Получение прогноза погоды на 5 дней"""
     user_id = message.from_user.id
 
@@ -102,7 +102,7 @@ async def get_weather_forecast(message: types.Message):
         )
     await message.answer(forecast_message, reply_markup=get_weather_keyboard())
 
-async def get_weekly_analysis(message: types.Message):
+async def get_weekly_analysis(message: types.Message) -> None:
     """Получение недельного анализа погоды"""
     user_id = message.from_user.id
 
@@ -168,4 +168,3 @@ def register_weather_handlers(dp: Dispatcher):
     dp.message.register(get_weather_forecast, Text(text="Прогноз погоды на 5 дней"))
     dp.message.register(get_weekly_analysis, Text(text="Еженедельный анализ погоды"))
     dp.message.register(change_city, Text(text="Изменить город"))
-
