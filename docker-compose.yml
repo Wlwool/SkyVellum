@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  bot:
+    build: .
+    container_name: skyvellum_bot
+    restart: always
+    volumes:
+      - ./logs:/app/logs
+      - ./database:/app/database
+    env_file:
+      - .env
