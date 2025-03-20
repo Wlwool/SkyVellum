@@ -1,3 +1,5 @@
 /.idea/
 /.venv/
 .env
+/logs/
+/bot/database/weather_bot.db
