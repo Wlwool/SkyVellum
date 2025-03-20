@@ -1,12 +1,13 @@
 import logging
 from aiogram import Dispatcher, types
-from aiogram.filters import Text
+from aiogram import F
+from aiogram.fsm.context import FSMContext
 from sqlalchemy.future import select
 from bot.database.models import User, WeatherData
 from bot.database.database import async_session
 from bot.services.weather_api import WeatherAPI
 from bot.services.analytics import WeatherAnalytics
-from bot.keyboards.reply import get_weather_keyboard
+from bot.keyboards.reply import get_weather_keyboard, get_start_keyboard
 
 
 logger = logging.getLogger(__name__)
@@ -164,7 +165,7 @@ async def change_city(message: types.Message):
 
 def register_weather_handlers(dp: Dispatcher):
     """Регистрация обработчиков команд для погоды"""
-    dp.message.register(get_weather_now, Text(text="Погода сейчас"))
-    dp.message.register(get_weather_forecast, Text(text="Прогноз погоды на 5 дней"))
-    dp.message.register(get_weekly_analysis, Text(text="Еженедельный анализ погоды"))
-    dp.message.register(change_city, Text(text="Изменить город"))
+    dp.message.register(get_weather_now, F.text.casefold() == "Погода сейчас")
+    dp.message.register(get_weather_forecast, F.text.casefold() == "Прогноз погоды на 5 дней")
+    dp.message.register(get_weekly_analysis, F.text.casefold == "Еженедельный анализ погоды")
+    dp.message.register(change_city, F.text.casefold()=="Изменить город")
