@@ -18,11 +18,12 @@ def setup_logger():
     file_handler = RotatingFileHandler("logs/bot.log",
                                        maxBytes=10485760,
                                        backupCount=5)  # размер файла 10 МБ
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(formatter)
+
+    file_handler.setLevel(logging.INFO)  # уровень логирования для файла логов
+    file_handler.setFormatter(formatter)  # форматирование логов
 
     # обработчик для консоли
-    console_handler = logging.StreamHandler()
+    console_handler = logging.StreamHandler()  # вывод логов в консоль
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(formatter)
 
@@ -33,8 +34,3 @@ def setup_logger():
     # добавление уровня логирования для некоторых модулей
     logging.getLogger("aiogram").setLevel(logging.WARNING)
     logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
-
-
-
-
-
