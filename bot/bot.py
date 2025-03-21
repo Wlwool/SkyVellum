@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -38,6 +37,3 @@ async def main():
     # Запуск бота
     logger.info("Бот запущен!")
     await dp.start_polling(bot)
-
-
-
