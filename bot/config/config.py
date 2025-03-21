@@ -4,12 +4,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 @dataclass
 class Config:
     BOT_TOKEN: str = os.environ.get("BOT_TOKEN")
     WEATHER_API_KEY: str = os.environ.get("WEATHER_API_KEY")
     DB_URL: str = os.environ.get("DB_URL", "sqlite:///database/weather_bot.db")
-    ADMIN_IDS:list = None
+    ADMIN_IDS: list = None
 
     def __post_init__(self):
         admin_ids = os.environ.get("ADMIN_IDS", "")
