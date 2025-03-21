@@ -1,3 +1,4 @@
+```plaintext
 bot/
 ├── config/
 │   ├── __init__.py
@@ -40,3 +41,4 @@ docker-compose.yml
 Dockerfile
 main.py
 requirements.txt
+```
