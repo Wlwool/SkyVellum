@@ -5,6 +5,7 @@ from aiogram.fsm.context import FSMContext
 from datetime import datetime
 from pytz import timezone
 from sqlalchemy.future import select
+from typing import Any
 from bot.database.models import User, WeatherData
 from bot.database.database import async_session
 from bot.services.weather_api import WeatherAPI
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 weather_api = WeatherAPI()
 
 
-async def get_weather_now(message: types.Message) -> None:
+async def get_weather_now(message: types.Message):
     """Получение текущей информации о погоде"""
     utc_time = message.date.astimezone(timezone('Europe/Moscow'))
     formatted_time = utc_time.strftime('%H:%M:%S')
@@ -36,7 +37,8 @@ async def get_weather_now(message: types.Message) -> None:
         return
 
     # получение данных о погоде для города, который был выбран пользователем
-    weather_data = await weather_api.get_current_weather(user.city)
+    # weather_data = await weather_api.get_current_weather(user.city)
+    weather_data: dict[str, Any] | None = await weather_api.get_current_weather(user.city)
 
     if not weather_data:
         await message.answer("Извините, ошибка получения данных о погоде. Попробуйте позже",
@@ -58,6 +60,10 @@ async def get_weather_now(message: types.Message) -> None:
         session.add(new_weather_data)
         await session.commit()
 
+    # Преобразование времени заката и рассвета в читаемый формат
+    sunrise_time = datetime.fromtimestamp(weather_data["sunrise"]).strftime('%H:%M:%S')
+    sunset_time = datetime.fromtimestamp(weather_data["sunset"]).strftime('%H:%M:%S')
+
     # ответное сообщение с текущей погодой пользователю
     weather_message = (
         f"Погода в городе {weather_data['city']} ({weather_data['country']}):\n\n"
@@ -65,8 +71,11 @@ async def get_weather_now(message: types.Message) -> None:
         f"💧 Влажность: {weather_data['humidity']}%\n"
         f"🌬️ Ветер: {weather_data['wind_speed']} м/с\n"
         f"🔍 {weather_data['description'].capitalize()}\n\n"
-        f"🕒 Данные обновлены: {formatted_time}"  # message.date.strftime('%H:%M:%S')
-    )
+        f"🌅 Восход солнца: {sunrise_time}\n"
+        f"🌇 Закат солнца: {sunset_time}\n\n"
+        f"🕒 Данные обновлены: {formatted_time}\n"  # message.date.strftime('%H:%M:%S')
+        f"*** Хорошего дня! ***"
+    )   # Облачность: 100% Восход солнца: 08:27:39
 
     await message.answer(weather_message, reply_markup=get_weather_keyboard())
 
