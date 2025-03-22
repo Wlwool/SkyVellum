@@ -1,6 +1,7 @@
 import logging
 from aiogram import Dispatcher, types
 from aiogram.filters import Command
+from sqlalchemy import func
 from sqlalchemy.future import select
 from bot.config.config import Config
 from bot.database.models import User
@@ -47,7 +48,7 @@ async def cmd_stats(message: types.Message):
     )
 
     for city, count in cities[:10]:
-        stats_message += f"{city}: {count} пользователей\n"
+        stats_message += f"- {city}: {count} пользователей\n"
 
     await message.answer(stats_message)
 
@@ -55,4 +56,3 @@ async def cmd_stats(message: types.Message):
 def register_admin_handlers(dp: Dispatcher):
     """Регистрация обработчиков команд администратора"""
     dp.message.register(cmd_stats, Command("stats"))
-
