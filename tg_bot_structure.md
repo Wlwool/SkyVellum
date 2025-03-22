@@ -17,9 +17,7 @@ bot/
 │   ├── __init__.py
 │   ├── inline.py
 │   └── reply.py
-├── middlewares/
-│   ├── __init__.py
-│   └── logging.py
+│ 
 ├── services/
 │   ├── __init__.py
 │   ├── analytics.py
