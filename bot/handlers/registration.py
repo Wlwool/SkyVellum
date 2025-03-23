@@ -8,6 +8,7 @@ from bot.database.models import User
 from bot.database.database import async_session
 from bot.keyboards.reply import get_start_keyboard
 from bot.services.weather_api import WeatherAPI
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ async def process_city(message: types.Message, state: FSMContext) -> None:
 
     # Проверка на наличие города через API погоды
     weather_api = WeatherAPI()
-    weather_data = await weather_api.get_current_weather(city)
+    weather_data: Dict[str, Any] | None = await weather_api.get_current_weather(city)
 
     if not weather_data:
         await message.answer("Извините, но не удалось найти введенный вами город. "
