@@ -28,7 +28,7 @@ async def cmd_stats(message: types.Message):
         total_users = total_users_result.scalar_one()
 
         # количество активных пользователей
-        active_users_result = await session.execute(select(func.count(User.id)).where(User.is_active == True))
+        active_users_result = await session.execute(select(func.count(User.id)).where(User.is_active.is_(True)))
         active_users = active_users_result.scalar_one()
 
         # города пользователей
