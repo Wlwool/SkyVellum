@@ -2,6 +2,7 @@ import logging
 import asyncio
 from sqlalchemy.future import select
 from aiogram import Bot
+from typing import Any
 from datetime import datetime, time, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -9,6 +10,7 @@ from bot.database.models import User
 from bot.database.database import async_session
 from bot.services.weather_api import WeatherAPI
 from bot.services.analytics import WeatherAnalytics
+
 
 logger = logging.getLogger(__name__)
 weather_api = WeatherAPI()
@@ -26,7 +28,7 @@ async def send_daily_weather(bot: Bot):
     for user in users:
         try:
             # получение прогноза погоды для города пользователя
-            weather_data = await weather_api.get_current_weather(user.city)
+            weather_data: dict[str, Any] | None = await weather_api.get_current_weather(user.city)
 
             if not weather_data:
                 logger.warning(f"Не удалось получить погоду для пользователя {user.user_id}, город: {user.city}")
@@ -56,7 +58,7 @@ async def send_weekly_analysis(bot: Bot):
     logger.info("Запуск рассылки еженедельного анализа погоды")
 
     async with async_session() as session:
-        stmt = select(User).where(User.is_active == True)
+        stmt = select(User).where(User.is_active.is_(True))
         result = await session.execute(stmt)
         users = result.scalars().all()
 
