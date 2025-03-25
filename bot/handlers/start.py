@@ -16,14 +16,14 @@ async def cmd_start(message: types.Message) -> None:
 
     # Проверка регистрации пользователя
     async with async_session() as session:
-        stmt = select(User).filter_by(id=user_id)
+        stmt = select(User).where(User.user_id == user_id)
         result = await session.execute(stmt)
         user = result.scalar_one_or_none()
 
         if user:
             await message.answer(
                 f"Привет, {message.from_user.first_name}!\n"
-                f"Вы уже зарегистрированы! Ваш город: {user.city}.",
+                f"Вы уже зарегистрированы!\nВаш город: {user.city.capitalize()}.",
                 reply_markup=get_start_keyboard(is_registered=True)
             )
         else:
