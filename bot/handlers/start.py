@@ -16,20 +16,20 @@ async def cmd_start(message: types.Message) -> None:
 
     # Проверка регистрации пользователя
     async with async_session() as session:
-        stmt = select(User).where(User.id == user_id)
+        stmt = select(User).filter_by(id=user_id)
         result = await session.execute(stmt)
         user = result.scalar_one_or_none()
 
         if user:
             await message.answer(
-                f"Привет, {message.from_user.first_name}!"
+                f"Привет, {message.from_user.first_name}!\n"
                 f"Вы уже зарегистрированы! Ваш город: {user.city}.",
                 reply_markup=get_start_keyboard(is_registered=True)
             )
         else:
             await message.answer(
-                f"Привет, {message.from_user.first_name}!"
-                f"Добро пожаловать в бота прогноза погоды. "
+                f"Привет, {message.from_user.first_name}!\n"
+                f"Добро пожаловать в бота прогноза погоды. ☀️\n"
                 f"Для получения информации о погоде, вам необходимо зарегистрироваться и указать свой город.",
                 reply_markup=get_start_keyboard(is_registered=False)
             )
