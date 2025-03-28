@@ -7,7 +7,7 @@ services:
     restart: always
     volumes:
       - ./logs:/app/logs
-      - .database:/app/database
+      - ./database:/app/database
       - ./bot:/app/bot
     env_file:
       - .env
