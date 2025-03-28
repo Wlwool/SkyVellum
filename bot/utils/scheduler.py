@@ -15,8 +15,6 @@ from bot.services.analytics import WeatherAnalytics
 logger = logging.getLogger(__name__)
 weather_api = WeatherAPI()
 
-logger.info(f"Сейчас {datetime.now()}")
-
 async def send_daily_weather(bot: Bot):
     """Отправляет ежедневный прогноз погоды всем пользователям"""
     logger.info("Запуск рассылки ежедневного прогноза погоды")
