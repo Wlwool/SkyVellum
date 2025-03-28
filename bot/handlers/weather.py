@@ -3,7 +3,7 @@ from aiogram import Dispatcher, types
 from aiogram import F
 from aiogram.fsm.context import FSMContext
 from datetime import datetime
-from pytz import timezone
+from pytz import timezone, utc
 from sqlalchemy.future import select
 from typing import Any
 from bot.database.models import User, WeatherData
@@ -61,8 +61,9 @@ async def get_weather_now(message: types.Message):
         await session.commit()
 
     # Преобразование времени заката и рассвета в читаемый формат
-    sunrise_time = datetime.fromtimestamp(weather_data["sunrise"]).strftime('%H:%M:%S')
-    sunset_time = datetime.fromtimestamp(weather_data["sunset"]).strftime('%H:%M:%S')
+    moscow_tz = timezone("Europe/Moscow")
+    sunrise_time = datetime.fromtimestamp(weather_data["sunrise"], utc).astimezone(moscow_tz).strftime('%H:%M:%S')
+    sunset_time = datetime.fromtimestamp(weather_data["sunset"], utc).astimezone(moscow_tz).strftime('%H:%M:%S')
 
     # ответное сообщение с текущей погодой пользователю
     weather_message = (
