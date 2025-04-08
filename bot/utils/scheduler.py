@@ -6,7 +6,7 @@ from typing import Any
 from datetime import datetime, time, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from bot.database.models import User
+from bot.database.models import User, WeatherData
 from bot.database.database import async_session
 from bot.services.weather_api import WeatherAPI
 from bot.services.analytics import WeatherAnalytics
@@ -32,6 +32,9 @@ async def send_daily_weather(bot: Bot):
             if not weather_data:
                 logger.warning(f"Не удалось получить погоду для пользователя {user.user_id}, город: {user.city}")
                 continue
+
+            # сохранение данных о погоде для еженедельного анализа
+            await WeatherAnalytics.save_weather_data_for_week_analysis(user.id, weather_data)
 
             # формирование сообщения с прогнозом погоды
             message = (

@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta
+from typing import Any
 from sqlalchemy import func, and_
 from sqlalchemy.future import select
 from bot.database.models import WeatherData, User
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 class WeatherAnalytics:
     @staticmethod
     async def get_weekly_analysis(user_id):
-        """Получение еженедельного анализа погоды для пользователя."""
+        """Получение еженедельного анализа погоды для пользователя из база данных"""
         try:
             async with async_session() as session:
                 # данные о пользователе
@@ -49,8 +50,14 @@ class WeatherAnalytics:
             return None
 
     @staticmethod
-    def _analyze_weekly_data(weather_data, city):
-        """Анализ погодных данных за неделю."""
+    def _analyze_weekly_data(weather_data: dict[str, Any], city: str) -> dict[str, Any] | None:
+        """Анализ погодных данных за неделю и формирование отчета:
+        Группирует данные по дням.
+        Вычисляет средние, минимальные и максимальные значения для каждого дня.
+        Определяет тенденции изменения температуры, влажности и ветра.
+        Формирует прогноз на следующую неделю на основе тенденций.
+        Возвращает структурированный отчет.
+        """
         try:
             daily_data = {}  # Словарь для хранения данных о погоде по дням недели
 
@@ -130,3 +137,30 @@ class WeatherAnalytics:
         except Exception as e:
             logger.error(f"Ошибка при анализе данных погоды: {e}")
             return None
+
+    @staticmethod
+    async def save_weather_data_for_week_analysis(user_id: int, weather_data: dict[str, Any]):
+        """
+        Сохраняет данные о погоде для еженедельного анализа.
+        :param user_id: ID пользователя
+        :param weather_data: данные о погоде - температуре, влажности, ветре и т.д.
+        :return:
+        """
+        try:
+            # Создаем запись о погоде для анализа
+            async with async_session() as session:
+                # Создаем новую запись WeatherData
+                new_weather_data = WeatherData(
+                    user_id=user_id,
+                    temperature=weather_data["temperature"],
+                    feels_like=weather_data["feels_like"],
+                    pressure=weather_data["pressure"],
+                    humidity=weather_data["humidity"],
+                    wind_speed=weather_data["wind_speed"],
+                    description=weather_data["description"]
+                )
+                session.add(new_weather_data)
+                await session.commit()
+                logger.info(f"Сохранена погодная информация для пользователя {user_id}")
+        except Exception as e:
+            logger.error(f"Ошибка при сохранении погодных данных для пользователя {user_id}: {e}")
