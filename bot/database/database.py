@@ -1,3 +1,12 @@
+"""
+Модуль для работы с базой данных бота.
+
+Содержит:
+- Базовый класс для моделей SQLAlchemy
+- Настройки асинхронного подключения к БД
+- Утилиты для управления подключением
+"""
+
 import logging
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -17,7 +26,13 @@ async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False
 
 
 async def setup_db():
-    """Настройка базы данных при запуске бота"""
+    """Инициализация структуры базы данных при запуске бота.
+
+    Выполняет:
+    - Создание всех таблиц, определенных в моделях
+    - Проверку подключения к БД
+    - Логирование процесса инициализации
+    """
     from bot.database.models import User, WeatherData
     async with engine.begin() as conn:
         logger.info("Создание таблиц в базе данных")
@@ -26,6 +41,15 @@ async def setup_db():
     logger.info("Подключение к базе данных завершено")
 
 async def get_session() -> AsyncSession:
-    """Возвращает сессию для работы с базой данных"""
+    """
+    Генератор асинхронных сессий для работы с БД.
+
+    Возвращает:
+        AsyncSession: Асинхронная сессия SQLAlchemy
+
+    Особенности:
+    - Автоматически закрывает сессию после использования
+    - Поддерживает async context manager
+    """
     async with async_session() as session:
         yield session
