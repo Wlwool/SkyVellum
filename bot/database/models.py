@@ -5,6 +5,21 @@ from bot.database.database import Base
 
 
 class User(Base):
+    """
+    Модель для хранения данных о пользователях бота.
+    Атрибуты:
+        id (int): Уникальный идентификатор записи
+        user_id (int): Уникальный идентификатор пользователя в Telegram
+        username (str): Никнейм пользователя (опционально)
+        city (str): Название города для прогноза погоды (обязательно)
+        latitude (float): Географическая широта (для точного прогноза)
+        longitude (float): Географическая долгота (для точного прогноза)
+        is_active (bool): Флаг активности пользователя (для мягкого удаления)
+        registered_at (datetime): Дата и время регистрации (автоматически)
+
+    Связи:
+        weather_data (list[WeatherData]): История запросов погоды пользователя
+    """
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
@@ -25,6 +40,22 @@ class User(Base):
 
 
 class WeatherData(Base):
+    """
+    Модель для хранения данных о погоде.
+    Атрибуты:
+        id (int): Уникальный идентификатор записи
+        user_id (int): Идентификатор пользователя, которому принадлежит данная запись
+        temperature (float): Температура в градусах Цельсия
+        feels_like (float): Ощущаемая температура в градусах Цельсия
+        pressure (int): Атмосферное давление в миллиметрах ртутного столба
+        humidity (int): Влажность воздуха в процентах
+        wind_speed (float): Скорость ветра в м/с
+        description (str): Текстовое описание погодных условий
+        date (datetime): Время записи данных (автоматически)
+
+    Связи:
+        user (User): Связанный пользователь, выполнивший запрос
+    """
     __tablename__ = "weather_data"
 
     id = Column(Integer, primary_key=True)
