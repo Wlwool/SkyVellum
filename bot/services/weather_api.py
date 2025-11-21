@@ -1,6 +1,6 @@
 import logging
 import aiohttp
-from datetime import datetime, timedelta
+from datetime import datetime
 from bot.config.config import Config
 
 logger = logging.getLogger(__name__)
@@ -178,4 +178,3 @@ class WeatherAPI:
         except Exception as e:
             logger.error(f"Ошибка при обработке данных о прогнозе погоды: {e}")
             return None
-
