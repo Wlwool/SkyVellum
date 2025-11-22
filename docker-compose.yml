@@ -10,3 +10,4 @@ services:
       - ./bot:/app/bot
     env_file:
       - .env
+
