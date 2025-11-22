@@ -4,3 +4,5 @@
 /logs/
 /bot/database/weather_bot.db
 /database/*
+__pycache__/
+*.pyc
