@@ -38,7 +38,7 @@ async def send_daily_weather(bot: Bot):
 
             # формирование сообщения с прогнозом погоды
             message = (
-                f"☀️ Доброе утро! Вот прогноз погоды на сегодня для города {weather_data['city']}:\n\n"
+                f"☀️ Доброе утро! Вот прогноз погоды на утро для города {weather_data['city']}:\n\n"
                 f"🌡️ Температура: {weather_data['temperature']:.1f}°C (ощущается как {weather_data['feels_like']:.1f}°C)\n"
                 f"💧 Влажность: {weather_data['humidity']}%\n"
                 f"🌬️ Ветер: {weather_data['wind_speed']} м/с\n"
@@ -66,41 +66,62 @@ async def send_weekly_analysis(bot: Bot):
 
     for user in users:
         try:
-            # получение анализа погоды за неделю
-            analysis_data = await WeatherAnalytics.get_weekly_analysis(user.id)
+            # получение анализа погоды за неделю (прошлая неделя и прогноз на следующие 5 дней)
+            analysis_data = await WeatherAnalytics.get_weekly_analysis_with_forecast(user.id, weather_api)
 
             if not analysis_data:
                 logger.warning(f"Не удалось получить еженедельный анализ погоды для пользователя {user.user_id}")
                 continue
 
-            # формирование сообщения с аналитикой погоды
-            start_date = analysis_data["period"]["start"].strftime("%d.%m")
-            end_date = analysis_data["period"]["end"].strftime("%d.%m")
+            # # формирование сообщения с аналитикой погоды
+            # start_date = analysis_data["period"]["start"].strftime("%d.%m")
+            # end_date = analysis_data["period"]["end"].strftime("%d.%m")
 
-            message = f"📊 Еженедельный анализ погоды за период {start_date} - {end_date} для города {analysis_data['city']}:\n\n"
+            message = f"📊 Еженедельный анализ погоды для города {analysis_data['city']}:\n\n"
 
             # Добавляем информацию о тенденциях
-            if analysis_data["trends"]:
-                message += "Тенденции за неделю:\n"
-                message += f"🌡️ Температура: {analysis_data['trends']['temperature']['description']} "
-                message += f"({analysis_data['trends']['temperature']['value']:.1f}°C)\n"
-                message += f"💧 Влажность: {analysis_data['trends']['humidity']['description']} "
-                message += f"({analysis_data['trends']['humidity']['value']:.1f}%)\n"
-                message += f"🌬️ Ветер: {analysis_data['trends']['wind']['description']} "
-                message += f"({analysis_data['trends']['wind']['value']:.1f} м/с)\n\n"
+            if analysis_data["past_week"]:
+                past = analysis_data["past_week"]
+                start_date = past["period"]["start"].strftime("%d.%m")
+                end_date = past["period"]["end"].strftime("%d.%m")
+                message += f"Прошедшая неделя ({start_date} - {end_date}):\n\n"
+
+                if past["trends"]:
+                    message += "📈 Тенденции за неделю:\n"
+                    message += f"🌡️ Температура: {past['trends']['temperature']['description']} "
+                    message += f"({past['trends']['temperature']['value']:.1f}°C)\n"
+                    message += f"💧 Влажность: {past['trends']['humidity']['description']} "
+                    message += f"({past['trends']['humidity']['value']:.1f}%)\n"
+                    message += f"🌬️ Ветер: {past['trends']['wind']['description']} "
+                    message += f"({past['trends']['wind']['value']:.1f} м/с)\n\n"
+            else:
+                message += f"Прошедшая неделя: недостаточно данных для анализа.\n\n"
 
             # Добавляем прогноз на следующую неделю
             if analysis_data["next_week_forecast"]:
+                forecast = analysis_data["next_week_forecast"]
+                message += f"Прогноз на следующую неделю:\n\n"
+
+                for day_forecast in forecast:
+                    date_str = day_forecast["date"].strftime("%d.%m") if hasattr(day_forecast["date"], 'strftime') else str(day_forecast["date"])
+                    message += (
+                        f"📅 {date_str}: {day_forecast['avg_temp']:+.1f}°C "
+                        f"(от {day_forecast['min_temp']:+.1f}°C до {day_forecast['max_temp']:+.1f}°C)\n"
+                        f"   💧 {day_forecast['avg_humidity']:.0f}% | "
+                        f"🌬️ {day_forecast['avg_wind']:.1f} м/с | "
+                        f"{day_forecast['description'].capitalize()}\n\n"
+                    )
+                summary = forecast["summary"]
                 message += "🔮 Прогноз на следующую неделю (если тенденция сохранится):\n"
-                message += f"🌡️ Температура: {analysis_data['next_week_forecast']['temperature']:.1f}°C\n"
-                message += f"💧 Влажность: {analysis_data['next_week_forecast']['humidity']:.1f}%\n"
-                message += f"🌬️ Ветер: {analysis_data['next_week_forecast']['wind']:.1f} м/с\n\n"
+                message += f"🌡️ Температура: {summary['avg_temp']:+.1f}°C (от {summary['min_temp']:+.1f}°C до {summary['max_temp']:+.1f}°C)\n"
+                message += f"💧 Влажность: {summary['avg_humidity']:.0f}%\n"
+                message += f"🌬️ Ветер: {summary['avg_wind']:.1f} м/с\n"
 
             # Отправляем сообщение пользователю
             await bot.send_message(user.user_id, message)
             logger.info(f"Отправлен еженедельный анализ погоды пользователю {user.user_id}")
 
-            # Добавляем небольшую задержку, чтобы не перегружать API
+            # Небольшую задержка, чтобы не перегружать API
             await asyncio.sleep(0.5)
 
         except Exception as e:
