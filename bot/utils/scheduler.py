@@ -102,7 +102,7 @@ async def send_weekly_analysis(bot: Bot):
                 forecast = analysis_data["next_week_forecast"]
                 message += f"Прогноз на следующую неделю:\n\n"
 
-                for day_forecast in forecast:
+                for day_forecast in forecast["daily_forecasts"]:
                     date_str = day_forecast["date"].strftime("%d.%m") if hasattr(day_forecast["date"], 'strftime') else str(day_forecast["date"])
                     message += (
                         f"📅 {date_str}: {day_forecast['avg_temp']:+.1f}°C "
