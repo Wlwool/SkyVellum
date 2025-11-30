@@ -3,10 +3,9 @@ import asyncio
 from sqlalchemy.future import select
 from aiogram import Bot
 from typing import Any
-from datetime import datetime, time, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from bot.database.models import User, WeatherData
+from bot.database.models import User
 from bot.database.database import async_session
 from bot.services.weather_api import WeatherAPI
 from bot.services.analytics import WeatherAnalytics
@@ -72,10 +71,6 @@ async def send_weekly_analysis(bot: Bot):
             if not analysis_data:
                 logger.warning(f"Не удалось получить еженедельный анализ погоды для пользователя {user.user_id}")
                 continue
-
-            # # формирование сообщения с аналитикой погоды
-            # start_date = analysis_data["period"]["start"].strftime("%d.%m")
-            # end_date = analysis_data["period"]["end"].strftime("%d.%m")
 
             message = f"📊 Еженедельный анализ погоды для города {analysis_data['city']}:\n\n"
 
