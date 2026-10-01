@@ -47,7 +47,7 @@ async def setup_db():
     logger.info("Подключение к базе данных завершено")
 
 
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_session() -> AsyncGenerator[AsyncSession]:
     """
     Генератор асинхронных сессий для работы с БД.
 

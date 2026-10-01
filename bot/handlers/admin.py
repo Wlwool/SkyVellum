@@ -1,12 +1,13 @@
 import logging
+
 from aiogram import Dispatcher, types
 from aiogram.filters import Command
 from sqlalchemy import func
 from sqlalchemy.future import select
-from bot.config.config import Config
-from bot.database.models import User
-from bot.database.database import async_session
 
+from bot.config.config import Config
+from bot.database.database import async_session
+from bot.database.models import User
 
 logger = logging.getLogger(__name__)
 config = Config()

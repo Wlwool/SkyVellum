@@ -1,15 +1,16 @@
-import logging
 import asyncio
-from sqlalchemy.future import select
-from aiogram import Bot
+import logging
 from typing import Any
+
+from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from bot.database.models import User
-from bot.database.database import async_session
-from bot.services.weather_api import WeatherAPI
-from bot.services.analytics import WeatherAnalytics
+from sqlalchemy.future import select
 
+from bot.database.database import async_session
+from bot.database.models import User
+from bot.services.analytics import WeatherAnalytics
+from bot.services.weather_api import WeatherAPI
 
 logger = logging.getLogger(__name__)
 weather_api = WeatherAPI()
@@ -118,12 +119,12 @@ async def send_weekly_analysis(bot: Bot):
                     message += f"🌬️ Ветер: {past['trends']['wind']['description']} "
                     message += f"({past['trends']['wind']['value']:.1f} м/с)\n\n"
             else:
-                message += f"Прошедшая неделя: недостаточно данных для анализа.\n\n"
+                message += "Прошедшая неделя: недостаточно данных для анализа.\n\n"
 
             # Добавляем прогноз на следующую неделю
             if analysis_data["next_week_forecast"]:
                 forecast = analysis_data["next_week_forecast"]
-                message += f"Прогноз на следующую неделю:\n\n"
+                message += "Прогноз на следующую неделю:\n\n"
 
                 for day_forecast in forecast["daily_forecasts"]:
                     date_str = (

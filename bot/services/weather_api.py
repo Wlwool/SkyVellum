@@ -1,8 +1,10 @@
 import logging
-import aiohttp
 from datetime import datetime
-from bot.config.config import Config
 from typing import Any
+
+import aiohttp
+
+from bot.config.config import Config
 
 logger = logging.getLogger(__name__)
 config = Config()

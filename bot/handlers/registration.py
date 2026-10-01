@@ -1,14 +1,15 @@
 import logging
-from aiogram import Dispatcher, types
-from aiogram import F
+from typing import Any
+
+from aiogram import Dispatcher, F, types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from sqlalchemy.future import select
-from bot.database.models import User
+
 from bot.database.database import async_session
+from bot.database.models import User
 from bot.keyboards.reply import get_start_keyboard
 from bot.services.weather_api import WeatherAPI
-from typing import Any
 
 logger = logging.getLogger(__name__)
 

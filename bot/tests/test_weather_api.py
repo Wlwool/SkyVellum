@@ -1,5 +1,5 @@
 import pytest
-import asyncio
+
 from bot.services.weather_api import WeatherAPI
 
 

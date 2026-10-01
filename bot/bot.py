@@ -1,12 +1,13 @@
 import logging
+
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from bot.config.config import Config
-from bot.utils.logger import setup_logger
 from bot.database.database import setup_db
 from bot.handlers import register_all_handlers
+from bot.utils.logger import setup_logger
 from bot.utils.scheduler import schedule_jobs
 
 

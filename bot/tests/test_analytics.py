@@ -1,7 +1,9 @@
-import pytest
 import datetime
-from bot.database.models import User, WeatherData
+
+import pytest
+
 from bot.database.database import async_session
+from bot.database.models import User, WeatherData
 from bot.services.analytics import WeatherAnalytics
 
 

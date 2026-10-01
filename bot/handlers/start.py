@@ -1,11 +1,12 @@
 import logging
+
 from aiogram import Dispatcher, types
 from aiogram.filters import Command
 from sqlalchemy.future import select
-from bot.database.models import User
-from bot.database.database import async_session
-from bot.keyboards.reply import get_start_keyboard
 
+from bot.database.database import async_session
+from bot.database.models import User
+from bot.keyboards.reply import get_start_keyboard
 
 logger = logging.getLogger(__name__)
 

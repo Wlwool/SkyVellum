@@ -1,8 +1,9 @@
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from bot.utils.scheduler import send_weekly_analysis
+import pytest
+
 from bot.database.models import User
+from bot.utils.scheduler import send_weekly_analysis
 
 
 @pytest.mark.asyncio

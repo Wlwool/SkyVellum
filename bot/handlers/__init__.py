@@ -1,8 +1,9 @@
 from aiogram import Dispatcher
-from bot.handlers.start import register_start_handlers
-from bot.handlers.registration import register_registration_handlers
-from bot.handlers.weather import register_weather_handlers
+
 from bot.handlers.admin import register_admin_handlers
+from bot.handlers.registration import register_registration_handlers
+from bot.handlers.start import register_start_handlers
+from bot.handlers.weather import register_weather_handlers
 
 
 def register_all_handlers(dp: Dispatcher):

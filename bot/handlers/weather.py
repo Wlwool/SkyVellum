@@ -1,17 +1,17 @@
 import logging
-from aiogram import Dispatcher, types
-from aiogram import F
-from aiogram.fsm.context import FSMContext
 from datetime import datetime
+from typing import Any
+
+from aiogram import Dispatcher, F, types
+from aiogram.fsm.context import FSMContext
 from pytz import timezone, utc
 from sqlalchemy.future import select
-from typing import Any
-from bot.database.models import User, WeatherData
-from bot.database.database import async_session
-from bot.services.weather_api import WeatherAPI
-from bot.services.analytics import WeatherAnalytics
-from bot.keyboards.reply import get_weather_keyboard, get_start_keyboard
 
+from bot.database.database import async_session
+from bot.database.models import User, WeatherData
+from bot.keyboards.reply import get_start_keyboard, get_weather_keyboard
+from bot.services.analytics import WeatherAnalytics
+from bot.services.weather_api import WeatherAPI
 
 logger = logging.getLogger(__name__)
 weather_api = WeatherAPI()

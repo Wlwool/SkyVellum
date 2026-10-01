@@ -1,10 +1,12 @@
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
+
 from sqlalchemy import and_
 from sqlalchemy.future import select
-from bot.database.models import WeatherData, User
+
 from bot.database.database import async_session
+from bot.database.models import User, WeatherData
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +61,7 @@ class WeatherAnalytics:
             return None
 
     @staticmethod
-    def _analyze_weekly_data(weather_data: list, city: str) -> Optional[dict[str, Any]]:
+    def _analyze_weekly_data(weather_data: list, city: str) -> dict[str, Any] | None:
         """Анализ погодных данных за неделю и формирование отчета:
         Группирует данные по дням.
         Вычисляет средние, минимальные и максимальные значения для каждого дня.
@@ -176,7 +178,7 @@ class WeatherAnalytics:
     @staticmethod
     async def get_weekly_analysis_with_forecast(
         user_id: int, weather_api
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Метод воскресной рассылки, который получает анализ погоды
         за последнюю неделю и прогноз на следующие 5 дней из апи.
@@ -221,7 +223,7 @@ class WeatherAnalytics:
             return None
 
     @staticmethod
-    def _analyze_forecast(forecast_data: dict[str, Any]) -> Optional[dict[str, Any]]:
+    def _analyze_forecast(forecast_data: dict[str, Any]) -> dict[str, Any] | None:
         """
         Анализирует прогноз на 5 дней из апи.
         :param forecast_data: данные прогноза из weather_api.get_forecast()
