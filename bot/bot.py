@@ -17,6 +17,7 @@ async def main():
     logger.info("Запуск бота...")
 
     config = Config()
+    config.validate()
 
     # Инициализация бота и диспетчера
     bot = Bot(token=config.BOT_TOKEN)

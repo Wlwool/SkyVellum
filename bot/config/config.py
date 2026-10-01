@@ -35,3 +35,19 @@ class Config:
         )
     )
     ADMIN_IDS: list[int] = field(default_factory=_parse_admin_ids)
+
+    def validate(self) -> None:
+        """Проверяет обязательные переменные окружения.
+        Вызывается один раз при старте бота. Собирает все отсутствующие
+        переменные сразу, чтобы не перезапускать бота по одной.
+        """
+        required = {
+            "BOT_TOKEN": self.BOT_TOKEN,
+            "WEATHER_API_KEY": self.WEATHER_API_KEY,
+        }
+        missing = [name for name, value in required.items() if not value.strip()]
+        if missing:
+            raise ValueError(
+                "Не заданы обязательные переменные окружения: "
+                f"{', '.join(missing)}. Заполните их в .env (см. .env-example)."
+            )
