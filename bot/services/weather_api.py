@@ -2,6 +2,7 @@ import logging
 import aiohttp
 from datetime import datetime
 from bot.config.config import Config
+from typing import Any
 
 logger = logging.getLogger(__name__)
 config = Config()
@@ -12,7 +13,7 @@ class WeatherAPI:
         self.api_key = config.WEATHER_API_KEY
         self.base_url = "https://api.openweathermap.org/data/2.5"
 
-    async def get_current_weather(self, city: str) -> None:
+    async def get_current_weather(self, city: str) -> dict[str, Any] | None:
         """Получает информацию о текущей погоде по названию города"""
         url = f"{self.base_url}/weather"
         params = {"q": city, "appid": self.api_key, "units": "metric", "lang": "ru"}
@@ -35,7 +36,7 @@ class WeatherAPI:
 
     async def get_weather_by_coordinates(
         self, lat: float, lon: float
-    ) -> dict[float, float]:
+    ) -> dict[str, Any] | None:
         """Получает информацию о текущей погоде по координатам"""
         url = f"{self.base_url}/weather"
         params = {
@@ -82,7 +83,8 @@ class WeatherAPI:
                     else:
                         error_data = await response.json()
                         logger.error(
-                            f"Ошибка при получении данных о прогнозе погоды: {error_data}"
+                            f"Ошибка при получении данных о "
+                            f"прогнозе погоды: {error_data}"
                         )
                         return None
             except Exception as e:
@@ -116,7 +118,8 @@ class WeatherAPI:
             return None
 
     def _parse_forecast_data(self, data):
-        """Обрабатывает данные о прогнозе погоды и возвращает информацию о прогнозе на несколько дней"""
+        """Обрабатывает данные о прогнозе погоды и возвращает
+        информацию о прогнозе на несколько дней"""
         try:
             city = data["city"]["name"]
             country = data["city"]["country"]

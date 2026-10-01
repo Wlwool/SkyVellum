@@ -4,7 +4,7 @@ from sqlalchemy.sql import func
 from bot.database.database import Base
 
 
-class User(Base):
+class User(Base):  # type: ignore[valid-type,misc]
     """
     Модель для хранения данных о пользователях бота.
     Атрибуты:
@@ -40,7 +40,7 @@ class User(Base):
         return f"<User(id={self.id}, user_id={self.user_id}, city={self.city})>"
 
 
-class WeatherData(Base):
+class WeatherData(Base):  # type: ignore[valid-type,misc]
     """
     Модель для хранения данных о погоде.
     Атрибуты:
@@ -74,4 +74,7 @@ class WeatherData(Base):
     user = relationship("User", back_populates="weather_data")
 
     def __repr__(self):
-        return f"<WeatherData(id={self.id}, user_id={self.user_id}, temperature={self.temperature}, date={self.date})>"
+        return (
+            f"<WeatherData(id={self.id}, user_id={self.user_id}, "
+            f"temperature={self.temperature}, date={self.date})>"
+        )

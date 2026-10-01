@@ -20,6 +20,24 @@ testpaths = ["bot/tests"]
 
 [dependency-groups]
 dev = [
+    "mypy>=2.3.1",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
+    "ruff>=0.16.9",
+    "types-pytz>=2026.4.0.20260926",
 ]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.13"
+files = ["bot", "main.py"]
+
+[[tool.mypy.overrides]]
+module = ["apscheduler.*"]
+ignore_missing_imports = true

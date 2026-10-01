@@ -8,11 +8,16 @@
 """
 
 import logging
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from bot.config.config import Config
+from collections.abc import AsyncGenerator
 
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlalchemy.orm import declarative_base
+
+from bot.config.config import Config
 
 logger = logging.getLogger(__name__)
 config = Config()
@@ -22,7 +27,7 @@ Base = declarative_base()  # базовый класс для моделей д�
 
 # Создаем асинхронный движок и сессию для работы с базой данных
 engine = create_async_engine(config.DB_URL, echo=True)
-async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 
 async def setup_db():
@@ -33,7 +38,7 @@ async def setup_db():
     - Проверку подключения к БД
     - Логирование процесса инициализации
     """
-    from bot.database.models import User, WeatherData
+    import bot.database.models  # noqa: F401
 
     async with engine.begin() as conn:
         logger.info("Создание таблиц в базе данных")
@@ -42,7 +47,7 @@ async def setup_db():
     logger.info("Подключение к базе данных завершено")
 
 
-async def get_session() -> AsyncSession:
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Генератор асинхронных сессий для работы с БД.
 

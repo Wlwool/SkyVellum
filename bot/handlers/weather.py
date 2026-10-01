@@ -19,6 +19,8 @@ weather_api = WeatherAPI()
 
 async def get_weather_now(message: types.Message):
     """Получение текущей информации о погоде"""
+    if message.from_user is None:
+        return
     utc_time = message.date.astimezone(timezone("Europe/Moscow"))
     formatted_time = utc_time.strftime("%H:%M:%S")
 
@@ -32,7 +34,8 @@ async def get_weather_now(message: types.Message):
 
     if not user:
         await message.answer(
-            "Вы еще не зарегистрированы. Пожалуйста, зарегистрируйтесь, чтобы получать прогноз погоды",
+            "Вы еще не зарегистрированы. "
+            "Пожалуйста, зарегистрируйтесь, чтобы получать прогноз погоды",
             reply_markup=get_start_keyboard(is_registered=False),
         )
         return
@@ -40,7 +43,7 @@ async def get_weather_now(message: types.Message):
     # получение данных о погоде для города, который был выбран пользователем
     # weather_data = await weather_api.get_current_weather(user.city)
     weather_data: dict[str, Any] | None = await weather_api.get_current_weather(
-        user.city
+        user.city  # type: ignore[arg-type]
     )
 
     if not weather_data:
@@ -80,7 +83,8 @@ async def get_weather_now(message: types.Message):
     # ответное сообщение с текущей погодой пользователю
     weather_message = (
         f"Погода в городе {weather_data['city']} ({weather_data['country']}):\n\n"
-        f"🌡️ Температура: {weather_data['temperature']:.1f}°C (ощущается как {weather_data['feels_like']:.1f}°C)\n"
+        f"🌡️ Температура: {weather_data['temperature']:.1f}°C "
+        f"(ощущается как {weather_data['feels_like']:.1f}°C)\n"
         f"💧 Влажность: {weather_data['humidity']}%\n"
         f"🌬️ Ветер: {weather_data['wind_speed']} м/с\n"
         f"🔍 {weather_data['description'].capitalize()}\n\n"
@@ -95,6 +99,8 @@ async def get_weather_now(message: types.Message):
 
 async def get_weather_forecast(message: types.Message) -> None:
     """Получение прогноза погоды на 5 дней"""
+    if message.from_user is None:
+        return
     try:
         user_id = message.from_user.id
 
@@ -106,7 +112,8 @@ async def get_weather_forecast(message: types.Message) -> None:
 
         if not user:
             await message.answer(
-                "Вы еще не зарегистрированы. Пожалуйста, зарегистрируйтесь, чтобы получать прогноз погоды",
+                "Вы еще не зарегистрированы. "
+                "Пожалуйста, зарегистрируйтесь, чтобы получать прогноз погоды",
                 reply_markup=get_start_keyboard(is_registered=False),
             )
             return
@@ -123,13 +130,18 @@ async def get_weather_forecast(message: types.Message) -> None:
             return
 
         # ответное сообщение с прогнозом погоды пользователю
-        forecast_message = f"Прогноз погоды на 5 дней для города {forecast_data['city']} ({forecast_data['country']}):\n\n"
+        forecast_message = (
+            f"Прогноз погоды на 5 дней для города "
+            f"{forecast_data['city']} "
+            f"({forecast_data['country']}):\n\n"
+        )
 
         for forecast in forecast_data["forecasts"][:5]:  # Берем только первые 5 дней
             date_str = forecast["date"].strftime("%d.%m")
             forecast_message += (
                 f"📅 {date_str}:\n"
-                f"🌡️ Температура: {forecast['avg_temp']:.1f}°C (от {forecast['min_temp']:.1f}°C до {forecast['max_temp']:.1f}°C)\n"
+                f"🌡️ Температура: {forecast['avg_temp']:.1f}°C "
+                f"(от {forecast['min_temp']:.1f}°C до {forecast['max_temp']:.1f}°C)\n"
                 f"💧 Влажность: {forecast['avg_humidity']:.0f}%\n"
                 f"🌬️ Ветер: {forecast['avg_wind']:.1f} м/с\n"
                 f"🔍 {forecast['description'].capitalize()}\n\n"
@@ -142,6 +154,8 @@ async def get_weather_forecast(message: types.Message) -> None:
 
 async def get_weekly_analysis(message: types.Message) -> None:
     """Получение недельного анализа погоды"""
+    if message.from_user is None:
+        return
     user_id = message.from_user.id
 
     # Получение данных о пользователе
@@ -152,7 +166,8 @@ async def get_weekly_analysis(message: types.Message) -> None:
 
     if not user:
         await message.answer(
-            "Вы еще не зарегистрированы. Пожалуйста, зарегистрируйтесь, чтобы получать прогноз погоды",
+            "Вы еще не зарегистрированы. "
+            "Пожалуйста, зарегистрируйтесь, чтобы получать прогноз погоды",
             reply_markup=get_start_keyboard(is_registered=False),
         )
         return
@@ -162,7 +177,8 @@ async def get_weekly_analysis(message: types.Message) -> None:
 
     if not analysis_data:
         await message.answer(
-            "Извините, не удалось получить анализ погоды. Возможно, недостаточно данных для анализа. "
+            "Извините, не удалось получить анализ погоды. "
+            "Возможно, недостаточно данных для анализа. "
             "Попробуй позже, когда будет собрано больше данных.",
             reply_markup=get_weather_keyboard(),
         )
@@ -172,7 +188,10 @@ async def get_weekly_analysis(message: types.Message) -> None:
     start_date = analysis_data["period"]["start"].strftime("%d.%m")
     end_date = analysis_data["period"]["end"].strftime("%d.%m")
 
-    analysis_message = f"Анализ погоды за период {start_date} - {end_date} для города {analysis_data['city']}:\n\n"
+    analysis_message = (
+        f"Анализ погоды за период {start_date} - {end_date} "
+        f"для города {analysis_data['city']}:\n\n"
+    )
 
     # информация о тенденциях температуры, влажности и ветра
     if analysis_data["trends"]:
@@ -210,7 +229,9 @@ async def change_city(message: types.Message, state: FSMContext):
     from bot.handlers.registration import register_command
 
     await register_command(message, state)
-    # await register_command(message, FSMContext(message.bot.state_storage, message.chat.id, message.from_user.id))
+    # await register_command(
+    # message,
+    # FSMContext(message.bot.state_storage, message.chat.id, message.from_user.id))
 
 
 def register_weather_handlers(dp: Dispatcher):

@@ -30,6 +30,8 @@ async def cmd_stats(message: types.Message):
         2. Формирует статистические данные из БД
         3. Отправляет сводку администратору
     """
+    if message.from_user is None:
+        return
     user_id = message.from_user.id
 
     # проверяем, является ли пользователь админом

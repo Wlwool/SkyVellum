@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -16,10 +16,10 @@ class Config:
         ADMIN_IDS (list[int]): Список ID администраторов бота - необязательно.
     """
 
-    BOT_TOKEN: str = os.environ.get("BOT_TOKEN")
-    WEATHER_API_KEY: str = os.environ.get("WEATHER_API_KEY")
+    BOT_TOKEN: str = os.environ.get("BOT_TOKEN", "")
+    WEATHER_API_KEY: str = os.environ.get("WEATHER_API_KEY", "")
     DB_URL: str = os.environ.get("DB_URL", "sqlite:///database/weather_bot.db")
-    ADMIN_IDS: list = None
+    ADMIN_IDS: list[int] = field(default_factory=list)
 
     def __post_init__(self):
         """Пост-инициализация: парсит ADMIN_IDS из строки в список целых чисел."""

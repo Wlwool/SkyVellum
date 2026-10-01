@@ -48,7 +48,8 @@ class WeatherAnalytics:
 
                 if not weather_data:
                     logger.warning(
-                        f"Данные погоды за неделю для пользователя {user_id} не найдены."
+                        f"Данные погоды за неделю для пользователя "
+                        f"{user_id} не найдены."
                     )
                     return None
 
@@ -69,11 +70,13 @@ class WeatherAnalytics:
         try:
             if not weather_data or len(weather_data) < 2:
                 logger.warning(
-                    f"Недостаточно данных для анализа: {len(weather_data) if weather_data else 0} записей"
+                    f"Недостаточно данных для анализа: {
+                        len(weather_data) if weather_data else 0
+                    } записей"
                 )
                 return None
-
-            daily_data = {}  # Словарь для хранения данных о погоде по дням
+            # Словарь для хранения данных о погоде по дням
+            daily_data: dict[Any, list[WeatherData]] = {}
 
             # Группировка данных о погоде по дням
             for data in weather_data:
@@ -175,7 +178,8 @@ class WeatherAnalytics:
         user_id: int, weather_api
     ) -> Optional[dict[str, Any]]:
         """
-        Метод воскресной рассылки, который получает анализ погоды за последнюю неделю и прогноз на следующие 5 дней из апи.
+        Метод воскресной рассылки, который получает анализ погоды
+        за последнюю неделю и прогноз на следующие 5 дней из апи.
         :param user_id: IF пользователя, внутренний ID из таблицы User
         :param weather_api: Экземпляр WeatherAPI для получения прогноза
         :return: словарь с анализом прошлой недели и прогнозом на следующую неделю

@@ -22,7 +22,8 @@ class RegistrationForm(StatesGroup):
 async def register_command(message: types.Message, state: FSMContext) -> None:
     """Функция обработки команды регистрации пользователя."""
     await message.answer(
-        "Для регистрации укажите свой город, чтобы я мог присылать вам информацию о погоде.",
+        "Для регистрации укажите свой город, "
+        "чтобы я мог присылать вам информацию о погоде.",
         reply_markup=types.ReplyKeyboardRemove(),
     )
 
@@ -31,6 +32,11 @@ async def register_command(message: types.Message, state: FSMContext) -> None:
 
 async def process_city(message: types.Message, state: FSMContext) -> None:
     """Функция обработки введенного города пользователем."""
+    if message.from_user is None:
+        return
+    if message.text is None:
+        await message.answer("Пожалуйста, отправьте название города текстом.")
+        return
     city = message.text.strip()
 
     # Проверка на наличие города через API погоды
@@ -59,13 +65,14 @@ async def process_city(message: types.Message, state: FSMContext) -> None:
 
         if existing_user:
             # Если пользователь уже зарегистрирован, обновляем данные
-            existing_user.city = city
+            existing_user.city = city  # type: ignore[arg-type]
             existing_user.latitude = weather_data["lat"]
             existing_user.longitude = weather_data["lon"]
             await session.commit()
             logger.info(f"Обновление данных пользователя ({user_id}), город: {city}")
             await message.answer(
-                f"Ваш город успешно обновлен. Теперь вы будете получать информацию о погоде для города {city}.",
+                f"Ваш город успешно обновлен. "
+                f"Теперь вы будете получать информацию о погоде для города {city}.",
                 reply_markup=get_start_keyboard(is_registered=True),
             )
         else:
@@ -85,7 +92,8 @@ async def process_city(message: types.Message, state: FSMContext) -> None:
                 f"Зарегистрирован новый пользователь ({user_id}), город: {city}"
             )
             await message.answer(
-                f"Вы успешно зарегистрированы! Теперь вы будете получать информацию о погоде для города {city}.",
+                f"Вы успешно зарегистрированы! "
+                f"Теперь вы будете получать информацию о погоде для города {city}.",
                 reply_markup=get_start_keyboard(is_registered=True),
             )
     # Очистка состояния FSM после успешной регистрации
