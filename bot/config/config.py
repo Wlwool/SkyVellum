@@ -6,28 +6,32 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _parse_admin_ids() -> list[int]:
+    """Читает ADMIN_IDS из окружения: "1,2,3" -> [1, 2, 3]."""
+    admin_ids = os.environ.get("ADMIN_IDS", "")
+    return [int(admin_id) for admin_id in admin_ids.split(",") if admin_id]
+
+
 @dataclass
 class Config:
     """
     Класс конфигурации бота, хранящий в себе настройки переменных окружения.
+    Переменные читаются в момент создания Config(), а не при импорте модуля.
     Атрибуты:
         BOT_TOKEN (str): Токен Telegram-бота. Обязательно.
         WEATHER_API_KEY (str): API-ключ для сервиса погоды.
-        DB_URL (str): URL подключения к БД. По умолчанию SQLite в папке database.
+        DB_URL (str): URL подключения к БД (асинхронный драйвер).
+            По умолчанию SQLite в папке database.
         ADMIN_IDS (list[int]): Список ID администраторов бота - необязательно.
     """
 
-    BOT_TOKEN: str = os.environ.get("BOT_TOKEN", "")
-    WEATHER_API_KEY: str = os.environ.get("WEATHER_API_KEY", "")
-    DB_URL: str = os.environ.get("DB_URL", "sqlite:///database/weather_bot.db")
-    ADMIN_IDS: list[int] = field(default_factory=list)
-
-    def __post_init__(self):
-        """Пост-инициализация: парсит ADMIN_IDS из строки в список целых чисел."""
-        admin_ids = os.environ.get("ADMIN_IDS", "")
-        # Преобразует каждый элемент в число если элемент не пустой
-        self.ADMIN_IDS = (
-            [int(admin_id) for admin_id in admin_ids.split(",") if admin_id]
-            if admin_ids
-            else []
+    BOT_TOKEN: str = field(default_factory=lambda: os.environ.get("BOT_TOKEN", ""))
+    WEATHER_API_KEY: str = field(
+        default_factory=lambda: os.environ.get("WEATHER_API_KEY", "")
+    )
+    DB_URL: str = field(
+        default_factory=lambda: os.environ.get(
+            "DB_URL", "sqlite+aiosqlite:///database/weather_bot.db"
         )
+    )
+    ADMIN_IDS: list[int] = field(default_factory=_parse_admin_ids)
