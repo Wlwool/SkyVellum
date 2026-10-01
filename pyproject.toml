@@ -17,6 +17,7 @@ dependencies = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["bot/tests"]
+asyncio_mode = "auto"
 
 [dependency-groups]
 dev = [
