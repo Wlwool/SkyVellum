@@ -31,19 +31,25 @@ class WeatherAnalytics:
                 start_date = end_date - timedelta(days=7)
 
                 # получение погодных данных за неделю
-                stmt = select(WeatherData).where(
-                    and_(
-                        WeatherData.user_id == user.id,
-                        WeatherData.date >= start_date,
-                        WeatherData.date <= end_date
+                stmt = (
+                    select(WeatherData)
+                    .where(
+                        and_(
+                            WeatherData.user_id == user.id,
+                            WeatherData.date >= start_date,
+                            WeatherData.date <= end_date,
+                        )
                     )
-                ).order_by(WeatherData.date)
+                    .order_by(WeatherData.date)
+                )
 
                 result = await session.execute(stmt)
                 weather_data = result.scalars().all()
 
                 if not weather_data:
-                    logger.warning(f"Данные погоды за неделю для пользователя {user_id} не найдены.")
+                    logger.warning(
+                        f"Данные погоды за неделю для пользователя {user_id} не найдены."
+                    )
                     return None
 
                 return WeatherAnalytics._analyze_weekly_data(weather_data, user.city)
@@ -63,14 +69,15 @@ class WeatherAnalytics:
         try:
             if not weather_data or len(weather_data) < 2:
                 logger.warning(
-                    f"Недостаточно данных для анализа: {len(weather_data) if weather_data else 0} записей")
+                    f"Недостаточно данных для анализа: {len(weather_data) if weather_data else 0} записей"
+                )
                 return None
 
             daily_data = {}  # Словарь для хранения данных о погоде по дням
 
             # Группировка данных о погоде по дням
             for data in weather_data:
-                day = data.date.date() if hasattr(data.date, 'date') else data.date
+                day = data.date.date() if hasattr(data.date, "date") else data.date
                 if day not in daily_data:
                     daily_data[day] = []
                 daily_data[day].append(data)
@@ -84,14 +91,16 @@ class WeatherAnalytics:
                 avg_humidity = sum(d.humidity for d in data_list) / len(data_list)
                 avg_wind = sum(d.wind_speed for d in data_list) / len(data_list)
 
-                daily_analysis.append({
-                    "date": day,
-                    "avg_temp": round(avg_temp, 1),
-                    "min_temp": round(min_temp, 1),
-                    "max_temp": round(max_temp, 1),
-                    "avg_humidity": round(avg_humidity, 1),
-                    "avg_wind": round(avg_wind, 1)
-                })
+                daily_analysis.append(
+                    {
+                        "date": day,
+                        "avg_temp": round(avg_temp, 1),
+                        "min_temp": round(min_temp, 1),
+                        "max_temp": round(max_temp, 1),
+                        "avg_humidity": round(avg_humidity, 1),
+                        "avg_wind": round(avg_wind, 1),
+                    }
+                )
 
             # Сортировка данных по дате
             daily_analysis.sort(key=lambda x: x["date"])
@@ -103,15 +112,21 @@ class WeatherAnalytics:
                 first_days = daily_analysis[:days_for_trend]
                 last_days = daily_analysis[-days_for_trend:]
 
-                first_avg_temp = sum(d["avg_temp"] for d in first_days) / len(first_days)
+                first_avg_temp = sum(d["avg_temp"] for d in first_days) / len(
+                    first_days
+                )
                 last_avg_temp = sum(d["avg_temp"] for d in last_days) / len(last_days)
 
                 first_avg_humidity = sum(d["avg_humidity"] for d in first_days) / len(
-                    first_days)
+                    first_days
+                )
                 last_avg_humidity = sum(d["avg_humidity"] for d in last_days) / len(
-                    last_days)
+                    last_days
+                )
 
-                first_avg_wind = sum(d["avg_wind"] for d in first_days) / len(first_days)
+                first_avg_wind = sum(d["avg_wind"] for d in first_days) / len(
+                    first_days
+                )
                 last_avg_wind = sum(d["avg_wind"] for d in last_days) / len(last_days)
 
                 temp_trend = last_avg_temp - first_avg_temp
@@ -121,19 +136,22 @@ class WeatherAnalytics:
                 trends = {
                     "temperature": {
                         "value": round(temp_trend, 1),
-                        "description": WeatherAnalytics._get_trend_description(temp_trend,
-                                                                               "temperature")
+                        "description": WeatherAnalytics._get_trend_description(
+                            temp_trend, "temperature"
+                        ),
                     },
                     "humidity": {
                         "value": round(humidity_trend, 1),
                         "description": WeatherAnalytics._get_trend_description(
-                            humidity_trend, "humidity")
+                            humidity_trend, "humidity"
+                        ),
                     },
                     "wind": {
                         "value": round(wind_trend, 1),
-                        "description": WeatherAnalytics._get_trend_description(wind_trend,
-                                                                               "wind")
-                    }
+                        "description": WeatherAnalytics._get_trend_description(
+                            wind_trend, "wind"
+                        ),
+                    },
                 }
             else:
                 trends = None
@@ -142,10 +160,10 @@ class WeatherAnalytics:
                 "city": city,
                 "period": {
                     "start": daily_analysis[0]["date"] if daily_analysis else None,
-                    "end": daily_analysis[-1]["date"] if daily_analysis else None
+                    "end": daily_analysis[-1]["date"] if daily_analysis else None,
                 },
                 "daily_analysis": daily_analysis,
-                "trends": trends
+                "trends": trends,
             }
 
         except Exception as e:
@@ -153,7 +171,9 @@ class WeatherAnalytics:
             return None
 
     @staticmethod
-    async def get_weekly_analysis_with_forecast(user_id: int, weather_api) -> Optional[dict[str, Any]]:
+    async def get_weekly_analysis_with_forecast(
+        user_id: int, weather_api
+    ) -> Optional[dict[str, Any]]:
         """
         Метод воскресной рассылки, который получает анализ погоды за последнюю неделю и прогноз на следующие 5 дней из апи.
         :param user_id: IF пользователя, внутренний ID из таблицы User
@@ -170,23 +190,27 @@ class WeatherAnalytics:
                     logger.error(f"Пользователь c ID {user_id} не найден.")
                     return None
 
-                past_week_analysis = await WeatherAnalytics.get_weekly_analysis(user_id)  # анализ прошлой недели из бд
+                past_week_analysis = await WeatherAnalytics.get_weekly_analysis(
+                    user_id
+                )  # анализ прошлой недели из бд
                 forecast_data = await weather_api.get_forecast(user.city, days=5)
 
                 if not forecast_data:
-                    logger.error(f"Ошибка при получении прогноза погоды для {user.city}")
+                    logger.error(
+                        f"Ошибка при получении прогноза погоды для {user.city}"
+                    )
                     # Если нет прогноза, вернем хотя бы анализ прошлой недели
                     return {
                         "city": user.city,
                         "past_week": past_week_analysis,
-                        "next_week_forecast": None
+                        "next_week_forecast": None,
                     }
                 # обработка прогноза
                 forecast_analysis = WeatherAnalytics._analyze_forecast(forecast_data)
                 return {
                     "city": user.city,
                     "past_week": past_week_analysis,
-                    "next_week_forecast": forecast_analysis
+                    "next_week_forecast": forecast_analysis,
                 }
         except Exception as e:
             logger.error(f"Ошибка при получении анализа погоды с прогнозом: {e}")
@@ -213,21 +237,28 @@ class WeatherAnalytics:
             # Подробный прогноз по дням
             daily_forecasts = []
             for forecast in forecasts:
-                daily_forecasts.append({
-                    "date": forecast["date"],
-                    "avg_temp": round(forecast["avg_temp"], 1),
-                    "min_temp": round(forecast["min_temp"], 1),
-                    "max_temp": round(forecast["max_temp"], 1),
-                    "avg_humidity": round(forecast["avg_humidity"], 1),
-                    "avg_wind": round(forecast["avg_wind"], 1),
-                    "description": forecast["description"]
-                })
+                daily_forecasts.append(
+                    {
+                        "date": forecast["date"],
+                        "avg_temp": round(forecast["avg_temp"], 1),
+                        "min_temp": round(forecast["min_temp"], 1),
+                        "max_temp": round(forecast["max_temp"], 1),
+                        "avg_humidity": round(forecast["avg_humidity"], 1),
+                        "avg_wind": round(forecast["avg_wind"], 1),
+                        "description": forecast["description"],
+                    }
+                )
 
             # Среднее за весь прогнозируемый период
-            avg_temp = sum(f["avg_temp"] for f in daily_forecasts) / len(daily_forecasts)
+            avg_temp = sum(f["avg_temp"] for f in daily_forecasts) / len(
+                daily_forecasts
+            )
             avg_humidity = sum(f["avg_humidity"] for f in daily_forecasts) / len(
-                daily_forecasts)
-            avg_wind = sum(f["avg_wind"] for f in daily_forecasts) / len(daily_forecasts)
+                daily_forecasts
+            )
+            avg_wind = sum(f["avg_wind"] for f in daily_forecasts) / len(
+                daily_forecasts
+            )
 
             overall_min_temp = min(f["min_temp"] for f in daily_forecasts)
             overall_max_temp = max(f["max_temp"] for f in daily_forecasts)
@@ -239,9 +270,9 @@ class WeatherAnalytics:
                     "min_temp": round(overall_min_temp, 1),
                     "max_temp": round(overall_max_temp, 1),
                     "avg_humidity": round(avg_humidity, 1),
-                    "avg_wind": round(avg_wind, 1)
+                    "avg_wind": round(avg_wind, 1),
                 },
-                "days_count": len(daily_forecasts)
+                "days_count": len(daily_forecasts),
             }
 
         except Exception as e:
@@ -262,9 +293,10 @@ class WeatherAnalytics:
             return "усиление" if value > 0 else "ослабление"
         return "изменение"
 
-
     @staticmethod
-    async def save_weather_data_for_week_analysis(user_id: int, weather_data: dict[str, Any]):
+    async def save_weather_data_for_week_analysis(
+        user_id: int, weather_data: dict[str, Any]
+    ):
         """
         Сохраняет данные о погоде для еженедельного анализа.
         :param user_id: ID пользователя
@@ -281,10 +313,12 @@ class WeatherAnalytics:
                     pressure=weather_data["pressure"],
                     humidity=weather_data["humidity"],
                     wind_speed=weather_data["wind_speed"],
-                    description=weather_data["description"]
+                    description=weather_data["description"],
                 )
                 session.add(new_weather_data)
                 await session.commit()
                 logger.info(f"Сохранена погодная информация для пользователя {user_id}")
         except Exception as e:
-            logger.error(f"Ошибка при сохранении погодных данных для пользователя {user_id}: {e}")
+            logger.error(
+                f"Ошибка при сохранении погодных данных для пользователя {user_id}: {e}"
+            )

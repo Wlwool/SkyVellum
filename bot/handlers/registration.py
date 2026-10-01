@@ -15,14 +15,19 @@ logger = logging.getLogger(__name__)
 
 class RegistrationForm(StatesGroup):
     """Состояния FSM для регистрации пользователя."""
+
     waiting_for_city = State()
+
 
 async def register_command(message: types.Message, state: FSMContext) -> None:
     """Функция обработки команды регистрации пользователя."""
-    await message.answer("Для регистрации укажите свой город, чтобы я мог присылать вам информацию о погоде.",
-                         reply_markup=types.ReplyKeyboardRemove())
+    await message.answer(
+        "Для регистрации укажите свой город, чтобы я мог присылать вам информацию о погоде.",
+        reply_markup=types.ReplyKeyboardRemove(),
+    )
 
     await state.set_state(RegistrationForm.waiting_for_city)
+
 
 async def process_city(message: types.Message, state: FSMContext) -> None:
     """Функция обработки введенного города пользователем."""
@@ -33,9 +38,11 @@ async def process_city(message: types.Message, state: FSMContext) -> None:
     weather_data: Dict[str, Any] | None = await weather_api.get_current_weather(city)
 
     if not weather_data:
-        await message.answer("Извините, но не удалось найти введенный вами город. "
-                             "Пожалуйста, проверьте правильность написания и попробуйте еще раз. "
-                             "Примеры: Москва, Тамбов, Санкт-Петербург и т.д.")
+        await message.answer(
+            "Извините, но не удалось найти введенный вами город. "
+            "Пожалуйста, проверьте правильность написания и попробуйте еще раз. "
+            "Примеры: Москва, Тамбов, Санкт-Петербург и т.д."
+        )
         return
 
     # Получение информации о пользователе
@@ -59,7 +66,7 @@ async def process_city(message: types.Message, state: FSMContext) -> None:
             logger.info(f"Обновление данных пользователя ({user_id}), город: {city}")
             await message.answer(
                 f"Ваш город успешно обновлен. Теперь вы будете получать информацию о погоде для города {city}.",
-                reply_markup=get_start_keyboard(is_registered=True)
+                reply_markup=get_start_keyboard(is_registered=True),
             )
         else:
             # Если пользователь не зарегистрирован, создаем нового пользователя
@@ -70,19 +77,22 @@ async def process_city(message: types.Message, state: FSMContext) -> None:
                 last_name=last_name,
                 city=city,
                 latitude=weather_data["lat"],
-                longitude=weather_data["lon"]
-                )
+                longitude=weather_data["lon"],
+            )
             session.add(new_user)
             await session.commit()
-            logger.info(f"Зарегистрирован новый пользователь ({user_id}), город: {city}")
+            logger.info(
+                f"Зарегистрирован новый пользователь ({user_id}), город: {city}"
+            )
             await message.answer(
                 f"Вы успешно зарегистрированы! Теперь вы будете получать информацию о погоде для города {city}.",
-                reply_markup=get_start_keyboard(is_registered=True)
+                reply_markup=get_start_keyboard(is_registered=True),
             )
     # Очистка состояния FSM после успешной регистрации
     await state.clear()
 
+
 def register_registration_handlers(dp: Dispatcher):
     """Функция регистрации обработчиков для регистрации пользователя."""
-    dp.message.register(register_command, F.text=="Зарегистрироваться")
+    dp.message.register(register_command, F.text == "Зарегистрироваться")
     dp.message.register(process_city, RegistrationForm.waiting_for_city)

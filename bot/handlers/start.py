@@ -24,15 +24,16 @@ async def cmd_start(message: types.Message) -> None:
             await message.answer(
                 f"Привет, {message.from_user.first_name}!\n"
                 f"Вы уже зарегистрированы!\nВаш город: {user.city.capitalize()}.",
-                reply_markup=get_start_keyboard(is_registered=True)
+                reply_markup=get_start_keyboard(is_registered=True),
             )
         else:
             await message.answer(
                 f"Привет, {message.from_user.first_name}!\n"
                 f"Добро пожаловать в бота прогноза погоды. ☀️\n"
                 f"Для получения информации о погоде, вам необходимо зарегистрироваться и указать свой город.",
-                reply_markup=get_start_keyboard(is_registered=False)
+                reply_markup=get_start_keyboard(is_registered=False),
             )
+
 
 def register_start_handlers(dp: Dispatcher) -> None:
     """Регистрация обработчиков команды /start"""

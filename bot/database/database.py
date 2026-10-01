@@ -34,11 +34,13 @@ async def setup_db():
     - Логирование процесса инициализации
     """
     from bot.database.models import User, WeatherData
+
     async with engine.begin() as conn:
         logger.info("Создание таблиц в базе данных")
         await conn.run_sync(Base.metadata.create_all)
 
     logger.info("Подключение к базе данных завершено")
+
 
 async def get_session() -> AsyncSession:
     """

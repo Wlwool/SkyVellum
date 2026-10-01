@@ -17,6 +17,7 @@ async def test_get_current_weather():
     assert "wind_speed" in weather_data
     assert "description" in weather_data
 
+
 @pytest.mark.asyncio
 async def test_get_forecast():
     """Тест получения прогноза погоды"""
@@ -28,6 +29,7 @@ async def test_get_forecast():
     assert forecast_data["city"] == "Москва"
     assert "forecast" in forecast_data
     assert len(forecast_data["forecast"]) >= 3
+
 
 @pytest.mark.asyncio
 async def test_invalid_city():

@@ -22,7 +22,7 @@ def get_weather_keyboard() -> ReplyKeyboardMarkup:
         [KeyboardButton(text="Погода сейчас")],
         [KeyboardButton(text="Погода на 5 дней")],
         [KeyboardButton(text="Еженедельный анализ")],
-        [KeyboardButton(text="Изменить город")]
+        [KeyboardButton(text="Изменить город")],
     ]
 
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)

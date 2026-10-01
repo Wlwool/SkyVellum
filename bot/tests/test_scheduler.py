@@ -26,21 +26,22 @@ async def test_send_weekly_analysis_success():
         mock_session().__aenter__.return_value.execute = mock_exec
 
         # Мокаем WeatherAnalytics и API
-        with patch("bot.utils.scheduler.WeatherAnalytics") as mock_analytics, \
-                patch("bot.utils.scheduler.weather_api") as mock_weather_api:
-
+        with (
+            patch("bot.utils.scheduler.WeatherAnalytics") as mock_analytics,
+            patch("bot.utils.scheduler.weather_api") as mock_weather_api,
+        ):
             mock_analytics.get_weekly_analysis_with_forecast.return_value = {
                 "city": "Москва",
                 "past_week": {
                     "period": {
                         "start": MagicMock(strftime=MagicMock(return_value="01.04")),
-                        "end": MagicMock(strftime=MagicMock(return_value="07.04"))
+                        "end": MagicMock(strftime=MagicMock(return_value="07.04")),
                     },
                     "trends": {
                         "temperature": {"description": "повысилась", "value": 15.5},
                         "humidity": {"description": "снизилась", "value": 60.0},
-                        "wind": {"description": "усилился", "value": 3.2}
-                    }
+                        "wind": {"description": "усилился", "value": 3.2},
+                    },
                 },
                 "next_week_forecast": [
                     {
@@ -50,7 +51,7 @@ async def test_send_weekly_analysis_success():
                         "max_temp": 20.0,
                         "avg_humidity": 55.0,
                         "avg_wind": 2.8,
-                        "description": "переменная облачность"
+                        "description": "переменная облачность",
                     }
                 ],
                 "summary": {
@@ -58,8 +59,8 @@ async def test_send_weekly_analysis_success():
                     "min_temp": 11.0,
                     "max_temp": 21.0,
                     "avg_humidity": 58.0,
-                    "avg_wind": 3.0
-                }
+                    "avg_wind": 3.0,
+                },
             }
 
             # Запуск функции
@@ -134,10 +135,11 @@ async def test_send_weekly_analysis_exception_handling():
     user1.id = 1
     user1.is_active = True
 
-    with patch("bot.utils.scheduler.async_session") as mock_session, \
-            patch("bot.utils.scheduler.WeatherAnalytics") as mock_analytics, \
-            patch("bot.utils.scheduler.logger.error") as mock_log_error:
-
+    with (
+        patch("bot.utils.scheduler.async_session") as mock_session,
+        patch("bot.utils.scheduler.WeatherAnalytics") as mock_analytics,
+        patch("bot.utils.scheduler.logger.error") as mock_log_error,
+    ):
         mock_exec = AsyncMock()
         mock_exec.scalars.return_value.all.return_value = [user1]
         mock_session().__aenter__.return_value.execute = mock_exec
@@ -145,10 +147,13 @@ async def test_send_weekly_analysis_exception_handling():
         mock_analytics.get_weekly_analysis_with_forecast.return_value = {
             "city": "Москва",
             "past_week": {
-                "period": {"start": MagicMock(strftime=MagicMock(return_value="01.04")), "end": MagicMock(strftime=MagicMock(return_value="07.04"))},
-                "trends": {"temperature": {"description": "повысилась", "value": 15.5}}
+                "period": {
+                    "start": MagicMock(strftime=MagicMock(return_value="01.04")),
+                    "end": MagicMock(strftime=MagicMock(return_value="07.04")),
+                },
+                "trends": {"temperature": {"description": "повысилась", "value": 15.5}},
             },
-            "next_week_forecast": []
+            "next_week_forecast": [],
         }
 
         await send_weekly_analysis(bot=bot_mock)

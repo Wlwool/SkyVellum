@@ -5,7 +5,9 @@ from logging.handlers import RotatingFileHandler
 
 def setup_logger():
     """Логирование для бота"""
-    os.makedirs("logs", exist_ok=True)  # создает папку для логов, если она не существует
+    os.makedirs(
+        "logs", exist_ok=True
+    )  # создает папку для логов, если она не существует
 
     # настройка логгера
     logger = logging.getLogger()
@@ -15,9 +17,9 @@ def setup_logger():
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
     # обработчик для файла логов
-    file_handler = RotatingFileHandler("logs/bot.log",
-                                       maxBytes=10485760,
-                                       backupCount=5)  # размер файла 10 МБ
+    file_handler = RotatingFileHandler(
+        "logs/bot.log", maxBytes=10485760, backupCount=5
+    )  # размер файла 10 МБ
 
     file_handler.setLevel(logging.INFO)  # уровень логирования для файла логов
     file_handler.setFormatter(formatter)  # форматирование логов

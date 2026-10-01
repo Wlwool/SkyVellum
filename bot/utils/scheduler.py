@@ -14,6 +14,7 @@ from bot.services.analytics import WeatherAnalytics
 logger = logging.getLogger(__name__)
 weather_api = WeatherAPI()
 
+
 async def send_daily_weather(bot: Bot):
     """Отправляет ежедневный прогноз погоды всем пользователям"""
     logger.info("Запуск рассылки ежедневного прогноза погоды")
@@ -26,14 +27,20 @@ async def send_daily_weather(bot: Bot):
     for user in users:
         try:
             # получение прогноза погоды для города пользователя
-            weather_data: dict[str, Any] | None = await weather_api.get_current_weather(user.city)
+            weather_data: dict[str, Any] | None = await weather_api.get_current_weather(
+                user.city
+            )
 
             if not weather_data:
-                logger.warning(f"Не удалось получить погоду для пользователя {user.user_id}, город: {user.city}")
+                logger.warning(
+                    f"Не удалось получить погоду для пользователя {user.user_id}, город: {user.city}"
+                )
                 continue
 
             # сохранение данных о погоде для еженедельного анализа
-            await WeatherAnalytics.save_weather_data_for_week_analysis(user.id, weather_data)
+            await WeatherAnalytics.save_weather_data_for_week_analysis(
+                user.id, weather_data
+            )
 
             # формирование сообщения с прогнозом погоды
             message = (
@@ -52,7 +59,10 @@ async def send_daily_weather(bot: Bot):
             await asyncio.sleep(0.5)
 
         except Exception as e:
-            logger.error(f"Ошибка при отправке прогноза погоды пользователю {user.user_id}: {e}")
+            logger.error(
+                f"Ошибка при отправке прогноза погоды пользователю {user.user_id}: {e}"
+            )
+
 
 async def send_weekly_analysis(bot: Bot):
     """Отправляет еженедельный анализ погоды всем пользователям"""
@@ -66,13 +76,19 @@ async def send_weekly_analysis(bot: Bot):
     for user in users:
         try:
             # получение анализа погоды за неделю (прошлая неделя и прогноз на следующие 5 дней)
-            analysis_data = await WeatherAnalytics.get_weekly_analysis_with_forecast(user.id, weather_api)
+            analysis_data = await WeatherAnalytics.get_weekly_analysis_with_forecast(
+                user.id, weather_api
+            )
 
             if not analysis_data:
-                logger.warning(f"Не удалось получить еженедельный анализ погоды для пользователя {user.user_id}")
+                logger.warning(
+                    f"Не удалось получить еженедельный анализ погоды для пользователя {user.user_id}"
+                )
                 continue
 
-            message = f"📊 Еженедельный анализ погоды для города {analysis_data['city']}:\n\n"
+            message = (
+                f"📊 Еженедельный анализ погоды для города {analysis_data['city']}:\n\n"
+            )
 
             # Добавляем информацию о тенденциях
             if analysis_data["past_week"]:
@@ -85,7 +101,9 @@ async def send_weekly_analysis(bot: Bot):
                     message += "📈 Тенденции за неделю:\n"
                     message += f"🌡️ Температура: {past['trends']['temperature']['description']} "
                     message += f"({past['trends']['temperature']['value']:.1f}°C)\n"
-                    message += f"💧 Влажность: {past['trends']['humidity']['description']} "
+                    message += (
+                        f"💧 Влажность: {past['trends']['humidity']['description']} "
+                    )
                     message += f"({past['trends']['humidity']['value']:.1f}%)\n"
                     message += f"🌬️ Ветер: {past['trends']['wind']['description']} "
                     message += f"({past['trends']['wind']['value']:.1f} м/с)\n\n"
@@ -98,7 +116,11 @@ async def send_weekly_analysis(bot: Bot):
                 message += f"Прогноз на следующую неделю:\n\n"
 
                 for day_forecast in forecast["daily_forecasts"]:
-                    date_str = day_forecast["date"].strftime("%d.%m") if hasattr(day_forecast["date"], 'strftime') else str(day_forecast["date"])
+                    date_str = (
+                        day_forecast["date"].strftime("%d.%m")
+                        if hasattr(day_forecast["date"], "strftime")
+                        else str(day_forecast["date"])
+                    )
                     message += (
                         f"📅 {date_str}: {day_forecast['avg_temp']:+.1f}°C "
                         f"(от {day_forecast['min_temp']:+.1f}°C до {day_forecast['max_temp']:+.1f}°C)\n"
@@ -107,20 +129,26 @@ async def send_weekly_analysis(bot: Bot):
                         f"{day_forecast['description'].capitalize()}\n\n"
                     )
                 summary = forecast["summary"]
-                message += "🔮 Прогноз на следующую неделю (если тенденция сохранится):\n"
+                message += (
+                    "🔮 Прогноз на следующую неделю (если тенденция сохранится):\n"
+                )
                 message += f"🌡️ Температура: {summary['avg_temp']:+.1f}°C (от {summary['min_temp']:+.1f}°C до {summary['max_temp']:+.1f}°C)\n"
                 message += f"💧 Влажность: {summary['avg_humidity']:.0f}%\n"
                 message += f"🌬️ Ветер: {summary['avg_wind']:.1f} м/с\n"
 
             # Отправляем сообщение пользователю
             await bot.send_message(user.user_id, message)
-            logger.info(f"Отправлен еженедельный анализ погоды пользователю {user.user_id}")
+            logger.info(
+                f"Отправлен еженедельный анализ погоды пользователю {user.user_id}"
+            )
 
             # Небольшую задержка, чтобы не перегружать API
             await asyncio.sleep(0.5)
 
         except Exception as e:
-            logger.error(f"Ошибка при отправке еженедельного анализа пользователю {user.user_id}: {e}")
+            logger.error(
+                f"Ошибка при отправке еженедельного анализа пользователю {user.user_id}: {e}"
+            )
 
 
 def schedule_jobs(scheduler: AsyncIOScheduler, bot: Bot):
@@ -133,8 +161,8 @@ def schedule_jobs(scheduler: AsyncIOScheduler, bot: Bot):
         trigger=CronTrigger(hour=8, minute=0),
         kwargs={"bot": bot},
         id="daily_weather",
-        replace_existing=True
-        )
+        replace_existing=True,
+    )
     logger.info("Настроена задача на отправку ежедневного прогноза погоды в 8:00")
 
     # Отправка еженедельного анализа погоды в воскресенье в 12:00
@@ -143,7 +171,9 @@ def schedule_jobs(scheduler: AsyncIOScheduler, bot: Bot):
         trigger=CronTrigger(day_of_week="sun", hour=12, minute=0),
         kwargs={"bot": bot},
         id="weekly_analysis",
-        replace_existing=True
+        replace_existing=True,
     )
 
-    logger.info("Настроена задача на отправку еженедельного анализа погоды в 12:00 на воскресенье")
+    logger.info(
+        "Настроена задача на отправку еженедельного анализа погоды в 12:00 на воскресенье"
+    )

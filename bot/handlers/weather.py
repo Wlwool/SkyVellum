@@ -19,8 +19,8 @@ weather_api = WeatherAPI()
 
 async def get_weather_now(message: types.Message):
     """Получение текущей информации о погоде"""
-    utc_time = message.date.astimezone(timezone('Europe/Moscow'))
-    formatted_time = utc_time.strftime('%H:%M:%S')
+    utc_time = message.date.astimezone(timezone("Europe/Moscow"))
+    formatted_time = utc_time.strftime("%H:%M:%S")
 
     user_id = message.from_user.id
 
@@ -31,19 +31,23 @@ async def get_weather_now(message: types.Message):
         user = result.scalar_one_or_none()
 
     if not user:
-        await message.answer("Вы еще не зарегистрированы. Пожалуйста, зарегистрируйтесь, чтобы получать прогноз погоды",
-                             reply_markup=get_start_keyboard(is_registered=False)
-                             )
+        await message.answer(
+            "Вы еще не зарегистрированы. Пожалуйста, зарегистрируйтесь, чтобы получать прогноз погоды",
+            reply_markup=get_start_keyboard(is_registered=False),
+        )
         return
 
     # получение данных о погоде для города, который был выбран пользователем
     # weather_data = await weather_api.get_current_weather(user.city)
-    weather_data: dict[str, Any] | None = await weather_api.get_current_weather(user.city)
+    weather_data: dict[str, Any] | None = await weather_api.get_current_weather(
+        user.city
+    )
 
     if not weather_data:
-        await message.answer("Извините, ошибка получения данных о погоде. Попробуйте позже",
-                             reply_markup=get_weather_keyboard()
-                             )
+        await message.answer(
+            "Извините, ошибка получения данных о погоде. Попробуйте позже",
+            reply_markup=get_weather_keyboard(),
+        )
         return
 
     # сохранение данных о погоде в базу данных
@@ -55,15 +59,23 @@ async def get_weather_now(message: types.Message):
             pressure=weather_data["pressure"],
             humidity=weather_data["humidity"],
             wind_speed=weather_data["wind_speed"],
-            description=weather_data["description"]
+            description=weather_data["description"],
         )
         session.add(new_weather_data)
         await session.commit()
 
     # Преобразование времени заката и рассвета в читаемый формат
     moscow_tz = timezone("Europe/Moscow")
-    sunrise_time = datetime.fromtimestamp(weather_data["sunrise"], utc).astimezone(moscow_tz).strftime('%H:%M:%S')
-    sunset_time = datetime.fromtimestamp(weather_data["sunset"], utc).astimezone(moscow_tz).strftime('%H:%M:%S')
+    sunrise_time = (
+        datetime.fromtimestamp(weather_data["sunrise"], utc)
+        .astimezone(moscow_tz)
+        .strftime("%H:%M:%S")
+    )
+    sunset_time = (
+        datetime.fromtimestamp(weather_data["sunset"], utc)
+        .astimezone(moscow_tz)
+        .strftime("%H:%M:%S")
+    )
 
     # ответное сообщение с текущей погодой пользователю
     weather_message = (
@@ -76,9 +88,10 @@ async def get_weather_now(message: types.Message):
         f"🌇 Закат солнца: {sunset_time}\n\n"
         f"🕒 Данные обновлены: {formatted_time}\n"  # message.date.strftime('%H:%M:%S')
         f"*** Хорошего дня! ***"
-    )   # Облачность: 100% Восход солнца: 08:27:39
+    )  # Облачность: 100% Восход солнца: 08:27:39
 
     await message.answer(weather_message, reply_markup=get_weather_keyboard())
+
 
 async def get_weather_forecast(message: types.Message) -> None:
     """Получение прогноза погоды на 5 дней"""
@@ -92,9 +105,10 @@ async def get_weather_forecast(message: types.Message) -> None:
             user = result.scalar_one_or_none()
 
         if not user:
-            await message.answer("Вы еще не зарегистрированы. Пожалуйста, зарегистрируйтесь, чтобы получать прогноз погоды",
-                                 reply_markup=get_start_keyboard(is_registered=False)
-                                 )
+            await message.answer(
+                "Вы еще не зарегистрированы. Пожалуйста, зарегистрируйтесь, чтобы получать прогноз погоды",
+                reply_markup=get_start_keyboard(is_registered=False),
+            )
             return
         # получение прогноза погоды для города, который был выбран пользователем
         forecast_data = await weather_api.get_forecast(user.city, days=5)
@@ -102,9 +116,10 @@ async def get_weather_forecast(message: types.Message) -> None:
         print(f"Forecast data - {forecast_data} -")
 
         if not forecast_data:
-            await message.answer("Извините, ошибка получения данных о погоде. Попробуйте позже",
-                                 reply_markup=get_weather_keyboard()
-                                 )
+            await message.answer(
+                "Извините, ошибка получения данных о погоде. Попробуйте позже",
+                reply_markup=get_weather_keyboard(),
+            )
             return
 
         # ответное сообщение с прогнозом погоды пользователю
@@ -124,6 +139,7 @@ async def get_weather_forecast(message: types.Message) -> None:
         logger.error(f"Ошибка: {e}")
         await message.answer("Произошла внутренняя ошибка при получении прогноза.")
 
+
 async def get_weekly_analysis(message: types.Message) -> None:
     """Получение недельного анализа погоды"""
     user_id = message.from_user.id
@@ -135,9 +151,10 @@ async def get_weekly_analysis(message: types.Message) -> None:
         user = result.scalar_one_or_none()
 
     if not user:
-        await message.answer("Вы еще не зарегистрированы. Пожалуйста, зарегистрируйтесь, чтобы получать прогноз погоды",
-                             reply_markup=get_start_keyboard(is_registered=False)
-                             )
+        await message.answer(
+            "Вы еще не зарегистрированы. Пожалуйста, зарегистрируйтесь, чтобы получать прогноз погоды",
+            reply_markup=get_start_keyboard(is_registered=False),
+        )
         return
 
     # Получение еженедельного анализа погоды
@@ -147,7 +164,7 @@ async def get_weekly_analysis(message: types.Message) -> None:
         await message.answer(
             "Извините, не удалось получить анализ погоды. Возможно, недостаточно данных для анализа. "
             "Попробуй позже, когда будет собрано больше данных.",
-            reply_markup=get_weather_keyboard()
+            reply_markup=get_weather_keyboard(),
         )
         return
 
@@ -160,11 +177,19 @@ async def get_weekly_analysis(message: types.Message) -> None:
     # информация о тенденциях температуры, влажности и ветра
     if analysis_data["trends"]:
         analysis_message += "📊 Тенденции за неделю:\n"
-        analysis_message += f"🌡️ Температура: {analysis_data['trends']['temperature']['description']} "
-        analysis_message += f"({analysis_data['trends']['temperature']['value']:.1f}°C)\n"
-        analysis_message += f"💧 Влажность: {analysis_data['trends']['humidity']['description']} "
+        analysis_message += (
+            f"🌡️ Температура: {analysis_data['trends']['temperature']['description']} "
+        )
+        analysis_message += (
+            f"({analysis_data['trends']['temperature']['value']:.1f}°C)\n"
+        )
+        analysis_message += (
+            f"💧 Влажность: {analysis_data['trends']['humidity']['description']} "
+        )
         analysis_message += f"({analysis_data['trends']['humidity']['value']:.1f}%)\n"
-        analysis_message += f"🌬️ Ветер: {analysis_data['trends']['wind']['description']} "
+        analysis_message += (
+            f"🌬️ Ветер: {analysis_data['trends']['wind']['description']} "
+        )
         analysis_message += f"({analysis_data['trends']['wind']['value']:.1f} м/с)\n\n"
 
     # информация по дням за неделю
@@ -179,11 +204,14 @@ async def get_weekly_analysis(message: types.Message) -> None:
 
     await message.answer(analysis_message, reply_markup=get_weather_keyboard())
 
+
 async def change_city(message: types.Message, state: FSMContext):
     """Смена города"""
     from bot.handlers.registration import register_command
+
     await register_command(message, state)
     # await register_command(message, FSMContext(message.bot.state_storage, message.chat.id, message.from_user.id))
+
 
 def register_weather_handlers(dp: Dispatcher):
     """Регистрация обработчиков команд для погоды"""

@@ -20,6 +20,7 @@ class User(Base):
     Связи:
         weather_data (list[WeatherData]): История запросов погоды пользователя
     """
+
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
@@ -56,6 +57,7 @@ class WeatherData(Base):
     Связи:
         user (User): Связанный пользователь, выполнивший запрос
     """
+
     __tablename__ = "weather_data"
 
     id = Column(Integer, primary_key=True)

@@ -10,9 +10,13 @@ async def test_weekly_analysis():
     """Тест еженедельного анализа погоды."""
     # создание тестового пользователя
     async with async_session() as session:
-        test_user = User(user_id=999999, username="test_user",
-                         first_name="TestName", last_name="TestLastName",
-                         city="TestCity")
+        test_user = User(
+            user_id=999999,
+            username="test_user",
+            first_name="TestName",
+            last_name="TestLastName",
+            city="TestCity",
+        )
         session.add(test_user)
         await session.commit()
 
@@ -31,7 +35,7 @@ async def test_weekly_analysis():
                 humidity=60 + i,  # Влажность повышается
                 wind_speed=5.0 + i * 0.5,  # Ветер усиливается
                 description="Облачно",
-                date=date
+                date=date,
             )
             session.add(weather_data)
 
@@ -57,6 +61,3 @@ async def test_weekly_analysis():
         # удаление тестовых данных
         await session.delete(test_user)
         await session.commit()
-
-
-
