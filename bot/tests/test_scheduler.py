@@ -2,7 +2,12 @@ import datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from aiogram.exceptions import TelegramForbiddenError
+from aiogram.methods import SendMessage
+from sqlalchemy import select
 
+from bot.database.database import async_session
+from bot.database.models import User
 from bot.services.analytics import WeatherAnalytics
 from bot.utils import scheduler
 
@@ -114,3 +119,93 @@ async def test_send_weekly_analysis_exception_handling(make_user):
     assert bot.send_message.await_count == 2
     mock_log_error.assert_called_once()
     assert "API Error" in str(mock_log_error.call_args)
+
+
+def _forbidden() -> TelegramForbiddenError:
+    """Ошибка Telegram «бот заблокирован пользователем»."""
+    return TelegramForbiddenError(
+        method=SendMessage(chat_id=1, text="x"),
+        message="Forbidden: bot was blocked by the user",
+    )
+
+
+def _send_failing_for(chat_id_to_fail: int, error: Exception) -> AsyncMock:
+    """send_message, который бросает error только для одного chat_id."""
+
+    async def _send(chat_id, text):
+        if chat_id == chat_id_to_fail:
+            raise error
+
+    return AsyncMock(side_effect=_send)
+
+
+async def _is_active(user_id: int) -> bool:
+    async with async_session() as session:
+        result = await session.execute(
+            select(User.is_active).where(User.user_id == user_id)
+        )
+        return bool(result.scalar_one())
+
+
+def _weather() -> dict:
+    return {
+        "city": "Москва",
+        "temperature": 10.0,
+        "feels_like": 8.0,
+        "humidity": 70,
+        "wind_speed": 3.0,
+        "description": "ясно",
+    }
+
+
+async def test_weekly_blocked_user_is_deactivated(make_user):
+    """Заблокировавший бота пользователь деактивируется, остальные получают."""
+    await make_user(user_id=111)
+    await make_user(user_id=222)
+    bot = AsyncMock()
+    bot.send_message = _send_failing_for(111, _forbidden())
+
+    with _patch_analysis(_analysis()):
+        await scheduler.send_weekly_analysis(bot=bot)
+
+    assert bot.send_message.await_count == 2
+    assert await _is_active(111) is False
+    assert await _is_active(222) is True
+
+
+async def test_weekly_generic_error_keeps_user_active(make_user):
+    """Временный сбой (не Forbidden) не должен отключать пользователя."""
+    await make_user(user_id=111)
+    bot = AsyncMock()
+    bot.send_message = _send_failing_for(111, Exception("API Error"))
+
+    with _patch_analysis(_analysis()):
+        await scheduler.send_weekly_analysis(bot=bot)
+
+    assert await _is_active(111) is True
+
+
+async def test_daily_blocked_user_is_deactivated(make_user):
+    """То же для ежедневной рассылки."""
+    await make_user(user_id=111)
+    await make_user(user_id=222)
+    bot = AsyncMock()
+    bot.send_message = _send_failing_for(111, _forbidden())
+
+    with (
+        patch.object(
+            scheduler.weather_api,
+            "get_current_weather",
+            new=AsyncMock(return_value=_weather()),
+        ),
+        patch.object(
+            WeatherAnalytics,
+            "save_weather_data_for_week_analysis",
+            new=AsyncMock(),
+        ),
+    ):
+        await scheduler.send_daily_weather(bot=bot)
+
+    assert bot.send_message.await_count == 2
+    assert await _is_active(111) is False
+    assert await _is_active(222) is True

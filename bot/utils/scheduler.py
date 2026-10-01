@@ -3,8 +3,10 @@ import logging
 from typing import Any
 
 from aiogram import Bot
+from aiogram.exceptions import TelegramForbiddenError
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from sqlalchemy import update
 from sqlalchemy.future import select
 
 from bot.database.database import async_session
@@ -14,6 +16,15 @@ from bot.services.weather_api import WeatherAPI
 
 logger = logging.getLogger(__name__)
 weather_api = WeatherAPI()
+
+
+async def _deactivate_user(user_pk: int) -> None:
+    """Помечает пользователя неактивным (бот заблокирован). user_pk - User.id."""
+    async with async_session() as session:
+        await session.execute(
+            update(User).where(User.id == user_pk).values(is_active=False)
+        )
+        await session.commit()
 
 
 async def send_daily_weather(bot: Bot):
@@ -63,6 +74,11 @@ async def send_daily_weather(bot: Bot):
             # небольшая задержка, чтобы избежать слишком частых запросов к API
             await asyncio.sleep(0.5)
 
+        except TelegramForbiddenError:
+            logger.warning(
+                f"Пользователь {user.user_id} заблокировал бота, деактивируем"
+            )
+            await _deactivate_user(user.id)  # type: ignore[arg-type]
         except Exception as e:
             logger.error(
                 f"Ошибка при отправке прогноза погоды пользователю {user.user_id}: {e}"
@@ -157,10 +173,13 @@ async def send_weekly_analysis(bot: Bot):
             logger.info(
                 f"Отправлен еженедельный анализ погоды пользователю {user.user_id}"
             )
-
-            # Небольшую задержка, чтобы не перегружать API
             await asyncio.sleep(0.5)
 
+        except TelegramForbiddenError:
+            logger.warning(
+                f"Пользователь {user.user_id} заблокировал бота, деактивируем"
+            )
+            await _deactivate_user(user.id)  # type: ignore[arg-type]
         except Exception as e:
             logger.error(
                 f"Ошибка при отправке еженедельного анализа "
@@ -173,7 +192,6 @@ def schedule_jobs(scheduler: AsyncIOScheduler, bot: Bot):
     Отправка ежедневного прогноза погоды в 8 утра и отправка
     еженедельного анализа погоды в воскресенье в 12:00
     """
-    # Отправка ежедневного прогноза погоды в 8 утра
     scheduler.add_job(
         send_daily_weather,
         trigger=CronTrigger(hour=8, minute=0),
@@ -183,7 +201,6 @@ def schedule_jobs(scheduler: AsyncIOScheduler, bot: Bot):
     )
     logger.info("Настроена задача на отправку ежедневного прогноза погоды в 8:00")
 
-    # Отправка еженедельного анализа погоды в воскресенье в 12:00
     scheduler.add_job(
         send_weekly_analysis,
         trigger=CronTrigger(day_of_week="sun", hour=12, minute=0),
