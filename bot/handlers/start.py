@@ -24,6 +24,10 @@ async def cmd_start(message: types.Message) -> None:
         user = result.scalar_one_or_none()
 
         if user:
+            if user:
+                if not user.is_active:
+                    user.is_active = True  # type: ignore[assignment]
+                    await session.commit()
             await message.answer(
                 f"Привет, {message.from_user.first_name}!\n"
                 f"Вы уже зарегистрированы!\nВаш город: {user.city.capitalize()}.",
