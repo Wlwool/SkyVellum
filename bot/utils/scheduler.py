@@ -40,8 +40,8 @@ async def send_daily_weather(bot: Bot):
 
             # сохранение данных о погоде для еженедельного анализа
             await WeatherAnalytics.save_weather_data_for_week_analysis(
-                user.id,
-                weather_data,  # type: ignore[arg-type]
+                user.id,  # type: ignore[arg-type]
+                weather_data,
             )
 
             # формирование сообщения с прогнозом погоды
@@ -82,8 +82,8 @@ async def send_weekly_analysis(bot: Bot):
             # получение анализа погоды за неделю
             # (прошлая неделя и прогноз на следующие 5 дней)
             analysis_data = await WeatherAnalytics.get_weekly_analysis_with_forecast(
-                user.id,
-                weather_api,  # type: ignore[arg-type]
+                user.id,  # type: ignore[arg-type]
+                weather_api,
             )
 
             if not analysis_data:
