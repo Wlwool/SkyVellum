@@ -1,64 +1,94 @@
-# ☁️ SkyVellum - Ваш персональный метеоролог
+# ☁️ SkyVellum — Ваш персональный метеоролог
 
-SkyVellum - погодный бот, который следит за погодой за вас. Получайте актуальные данные, 
-прогнозы и аналитические отчёты прямо в Telegram.
+[![CI](https://github.com/Wlwool/SkyVellum/actions/workflows/ci.yml/badge.svg)](https://github.com/Wlwool/SkyVellum/actions/workflows/ci.yml)
 
-![Меню](https://github.com/Wlwool/SkyVellum/blob/main/images/menu.png)
+SkyVellum — погодный бот, который следит за погодой за вас: текущие данные,
+прогноз на 5 дней и еженедельный отчёт с тенденциями. 
+Получайте актуальные данные, прогнозы и аналитические отчёты прямо в Telegram.
+
+![Меню](images/menu.png)
 
 ## 🌟 Функциональность
 
-- Регистрация пользователей с выбором города  
-- Получение текущей погоды через команду бота 
-- Прогноз погоды на 5 дней  
-- Еженедельный анализ погоды с тенденциями и прогнозом  
-- Автоматическое уведомление о погоде каждое утро  
-- Еженедельный аналитический отчёт по воскресеньям  
-- Команда доступная только администратору **/stats** - с данными по количеству активных пользователей и списка городов
+- Регистрация с выбором города
+- Получение текущей погоды через команду бота
+- Еженедельный анализ: тенденции за прошедшую неделю (температура, влажность,
+  ветер) и прогноз на ближайшие 5 дней
+- Автоматическая утренняя рассылка погоды (08:00)
+- Еженедельный отчёт по воскресеньям (12:00)
+- Команда `/stats` для администраторов: количество пользователей и список городов
 
-![Прогноз на 5 дней](https://github.com/Wlwool/SkyVellum/blob/main/images/5_day.png)
+![Прогноз на 5 дней](images/5_day.png)
 
 ## ⚙️ Технические особенности
 
-- **Язык**: Python 3.13  
-- **Фреймворк**: aiogram 3.19.x  
-- **Архитектура**: Асинхронная, модульная для высокой производительности и возможности легко расширять функционал 
-- **БД**: SQLite, управление с помощью SQLAlchemy
-- **Логирование**: Встроенная система логов  
-- **Планировщик задач**: Для автоматической отправки уведомлений  
-- **Контейнеризация**: Docker  
-- **Тестирование**: Набор тестов для проверки работоспособности
+- **Язык:** Python 3.13
+- **Бот:** aiogram 3, FSM для регистрации, polling
+- **Данные о погоде:** OpenWeather API (aiohttp)
+- **БД:** SQLite, SQLAlchemy 2.0 (async, aiosqlite)
+- **Планировщик:** APScheduler для рассылок
+- **Логирование:** ротация логов (10 МБ × 5 файлов)
+- **Зависимости:** uv
+- **Качество кода:** ruff, mypy, pytest, GitHub Actions
+- **Контейнеризация:** Docker Compose
 
-## 🛠️ Запуск бота
+## 🛠️ Запуск бота 
 
-1. `.env` файл с токенами Telegram, OpenWeatherMap, ID админа.
+1. Создать `.env` файл по образцу `.env-example`: токены Telegram и OpenWeatherMap, ID админа.
 2. Запуск бота через Docker:
-   ```sh
-   docker-compose up --build  # Пересборка контейнера
-   docker-compose up -d  # Запуск в фоновом режиме
-   ```
+```sh
+   docker compose up --build  
+   docker compose up -d  
+```
 3. Управление контейнером:
-   ```sh
-   docker-compose logs -f bot  # Просмотр логов
-   docker-compose down  # Остановка контейнера
-   docker-compose restart bot  # Перезапуск
+```sh
+   docker compose logs -f bot  # Просмотр логов
+   docker compose down  # Остановка контейнера
+   docker compose restart bot  # Перезапуск
    docker exec -it skyvellum_bot /bin/bash  # Вход в контейнер
-   ```
+```
 
-## 🗄️ База данных
+### Локальный запуск (через uv)
 
-- **users** — хранит информацию о пользователях и их городах  
-- **weather_data** — исторические данные для аналитики  
+В `.env-example` путь к БД указан для Docker (`/app/database/...`). Для локального
+запуска укажите в `.env` относительный путь:
 
-## 📸 Примеры работы
+```sh
+DB_URL=sqlite+aiosqlite:///database/weather_bot.db
+```
+
+```sh
+mkdir -p database logs
+uv sync
+uv run python main.py
+```
+
+## Разработка
+
+```sh
+uv run ruff check .            # линтер
+uv run ruff format .           # форматирование
+uv run mypy                    # проверка типов
+uv run pytest                  # тесты
+```
+
+## База данных
+
+- **users** — пользователи и их города
+- **weather_data** — исторические данные для аналитики
+
+## ⚙️ Примеры работы
 
 ### Утренний прогноз
-![Утренний прогноз](https://github.com/Wlwool/SkyVellum/blob/main/images/8_00_utro.png)
+![Утренний прогноз](images/8_00_utro.png)
 
 ### Еженедельный отчёт
-![Еженедельный отчёт](https://github.com/Wlwool/SkyVellum/blob/main/images/12_00_sun.png)
+![Еженедельный отчёт](images/12_00_sun.png)
 
 ### Текущая погода
-![Погода сейчас](https://github.com/Wlwool/SkyVellum/blob/main/images/weather_now.png)
+![Погода сейчас](images/weather_now.png)
 
-## 📩 Обратная связь
-Есть идеи или вопросы? Открывайте issue или создавайте pull request в [репозитории](https://github.com/Wlwool/SkyVellum).
+## Обратная связь
+
+Есть идеи или вопросы? Открывайте issue или pull request в
+[репозитории](https://github.com/Wlwool/SkyVellum).
