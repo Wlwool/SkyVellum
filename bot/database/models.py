@@ -1,10 +1,11 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ForeignKey
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from bot.database.database import Base
 
 
-class User(Base):
+class User(Base):  # type: ignore[valid-type,misc]
     """
     Модель для хранения данных о пользователях бота.
     Атрибуты:
@@ -20,6 +21,7 @@ class User(Base):
     Связи:
         weather_data (list[WeatherData]): История запросов погоды пользователя
     """
+
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
@@ -39,7 +41,7 @@ class User(Base):
         return f"<User(id={self.id}, user_id={self.user_id}, city={self.city})>"
 
 
-class WeatherData(Base):
+class WeatherData(Base):  # type: ignore[valid-type,misc]
     """
     Модель для хранения данных о погоде.
     Атрибуты:
@@ -56,6 +58,7 @@ class WeatherData(Base):
     Связи:
         user (User): Связанный пользователь, выполнивший запрос
     """
+
     __tablename__ = "weather_data"
 
     id = Column(Integer, primary_key=True)
@@ -72,4 +75,7 @@ class WeatherData(Base):
     user = relationship("User", back_populates="weather_data")
 
     def __repr__(self):
-        return f"<WeatherData(id={self.id}, user_id={self.user_id}, temperature={self.temperature}, date={self.date})>"
+        return (
+            f"<WeatherData(id={self.id}, user_id={self.user_id}, "
+            f"temperature={self.temperature}, date={self.date})>"
+        )

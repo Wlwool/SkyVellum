@@ -1,4 +1,4 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
 
 def get_start_keyboard(is_registered: bool = False) -> ReplyKeyboardMarkup:
@@ -22,7 +22,7 @@ def get_weather_keyboard() -> ReplyKeyboardMarkup:
         [KeyboardButton(text="Погода сейчас")],
         [KeyboardButton(text="Погода на 5 дней")],
         [KeyboardButton(text="Еженедельный анализ")],
-        [KeyboardButton(text="Изменить город")]
+        [KeyboardButton(text="Изменить город")],
     ]
 
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)

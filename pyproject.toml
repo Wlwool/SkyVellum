@@ -1,0 +1,44 @@
+[project]
+name = "skyvellum"
+version = "0.1.0"
+description = "SkyVellum - погодный телеграм бот"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiogram>=3.19,<4",
+    "aiohttp>=3.11",
+    "aiosqlite>=0.21",
+    "apscheduler>=3.11,<4",
+    "python-dotenv>=1.0",
+    "pytz>=2025.1",
+    "sqlalchemy>=2.0.39,<2.1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["bot/tests"]
+asyncio_mode = "auto"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.3.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.16.9",
+    "types-pytz>=2026.4.0.20260926",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.13"
+files = ["bot", "main.py"]
+
+[[tool.mypy.overrides]]
+module = ["apscheduler.*"]
+ignore_missing_imports = true

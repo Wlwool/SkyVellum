@@ -1,4 +1,4 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
 def get_forecast_keyboard() -> InlineKeyboardMarkup:
@@ -6,12 +6,12 @@ def get_forecast_keyboard() -> InlineKeyboardMarkup:
     keyboard = [
         [
             InlineKeyboardButton(text="Сегодня", callback_data="forecast:today"),
-            InlineKeyboardButton(text="Завтра", callback_data="forecast:tomorrow")
+            InlineKeyboardButton(text="Завтра", callback_data="forecast:tomorrow"),
         ],
         [
             InlineKeyboardButton(text="3 дня", callback_data="forecast:3days"),
-            InlineKeyboardButton(text="5 дней", callback_data="forecast:5days")
-        ]
+            InlineKeyboardButton(text="5 дней", callback_data="forecast:5days"),
+        ],
     ]
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)

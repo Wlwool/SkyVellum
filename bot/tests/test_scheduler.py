@@ -1,158 +1,116 @@
+import datetime
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
-from bot.utils.scheduler import send_weekly_analysis
-from bot.database.models import User
-
-
-@pytest.mark.asyncio
-async def test_send_weekly_analysis_success():
-    """
-    Тест успешной отправки еженедельного анализа
-    """
-    # Мокаем бота
-    bot_mock = AsyncMock()
-
-    # Подготовка моковых данных пользователей
-    user1 = MagicMock(spec=User)
-    user1.user_id = 123456
-    user1.id = 1
-    user1.is_active = True
-
-    # Мокаем сессию и результат запроса к БД
-    with patch("bot.utils.scheduler.async_session") as mock_session:
-        mock_exec = AsyncMock()
-        mock_exec.scalars.return_value.all.return_value = [user1]
-        mock_session().__aenter__.return_value.execute = mock_exec
-
-        # Мокаем WeatherAnalytics и API
-        with patch("bot.utils.scheduler.WeatherAnalytics") as mock_analytics, \
-                patch("bot.utils.scheduler.weather_api") as mock_weather_api:
-
-            mock_analytics.get_weekly_analysis_with_forecast.return_value = {
-                "city": "Москва",
-                "past_week": {
-                    "period": {
-                        "start": MagicMock(strftime=MagicMock(return_value="01.04")),
-                        "end": MagicMock(strftime=MagicMock(return_value="07.04"))
-                    },
-                    "trends": {
-                        "temperature": {"description": "повысилась", "value": 15.5},
-                        "humidity": {"description": "снизилась", "value": 60.0},
-                        "wind": {"description": "усилился", "value": 3.2}
-                    }
-                },
-                "next_week_forecast": [
-                    {
-                        "date": MagicMock(strftime=MagicMock(return_value="08.04")),
-                        "avg_temp": 16.0,
-                        "min_temp": 12.0,
-                        "max_temp": 20.0,
-                        "avg_humidity": 55.0,
-                        "avg_wind": 2.8,
-                        "description": "переменная облачность"
-                    }
-                ],
-                "summary": {
-                    "avg_temp": 16.5,
-                    "min_temp": 11.0,
-                    "max_temp": 21.0,
-                    "avg_humidity": 58.0,
-                    "avg_wind": 3.0
-                }
-            }
-
-            # Запуск функции
-            await send_weekly_analysis(bot=bot_mock)
-
-            # Проверки
-            bot_mock.send_message.assert_awaited_once()
-            call_args = bot_mock.send_message.call_args
-            assert call_args[0][0] == 123456  # user_id
-            assert "Москва" in call_args[1]["text"]
-            assert "01.04 - 07.04" in call_args[1]["text"]
-            assert "Прогноз на следующую неделю" in call_args[1]["text"]
+from bot.services.analytics import WeatherAnalytics
+from bot.utils import scheduler
 
 
-@pytest.mark.asyncio
-async def test_send_weekly_analysis_no_data():
-    """
-    Тест поведения при отсутствии данных аналитики
-    """
-    bot_mock = AsyncMock()
-
-    user1 = MagicMock(spec=User)
-    user1.user_id = 123456
-    user1.id = 1
-    user1.is_active = True
-
-    with patch("bot.utils.scheduler.async_session") as mock_session:
-        mock_exec = AsyncMock()
-        mock_exec.scalars.return_value.all.return_value = [user1]
-        mock_session().__aenter__.return_value.execute = mock_exec
-
-        with patch("bot.utils.scheduler.WeatherAnalytics") as mock_analytics:
-            mock_analytics.get_weekly_analysis_with_forecast.return_value = None
-
-            await send_weekly_analysis(bot=bot_mock)
-
-            # Проверяем, что сообщение НЕ было отправлено
-            bot_mock.send_message.assert_not_called()
+@pytest.fixture(autouse=True)
+def no_sleep():
+    """Рассылка делает asyncio.sleep(0.5) на пользователя: в тестах не ждём."""
+    with patch("bot.utils.scheduler.asyncio.sleep", new=AsyncMock()):
+        yield
 
 
-@pytest.mark.asyncio
-async def test_send_weekly_analysis_user_inactive():
-    """
-    Тест: неактивные пользователи не получают рассылку
-    """
-    bot_mock = AsyncMock()
-
-    user1 = MagicMock(spec=User)
-    user1.user_id = 123456
-    user1.is_active = False  # неактивный
-
-    with patch("bot.utils.scheduler.async_session") as mock_session:
-        mock_exec = AsyncMock()
-        mock_exec.scalars.return_value.all.return_value = [user1]
-        mock_session().__aenter__.return_value.execute = mock_exec
-
-        await send_weekly_analysis(bot=bot_mock)
-
-        bot_mock.send_message.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_send_weekly_analysis_exception_handling():
-    """
-    Тест: обработка ошибок при отправке сообщения
-    """
-    bot_mock = AsyncMock()
-    bot_mock.send_message.side_effect = Exception("API Error")
-
-    user1 = MagicMock(spec=User)
-    user1.user_id = 123456
-    user1.id = 1
-    user1.is_active = True
-
-    with patch("bot.utils.scheduler.async_session") as mock_session, \
-            patch("bot.utils.scheduler.WeatherAnalytics") as mock_analytics, \
-            patch("bot.utils.scheduler.logger.error") as mock_log_error:
-
-        mock_exec = AsyncMock()
-        mock_exec.scalars.return_value.all.return_value = [user1]
-        mock_session().__aenter__.return_value.execute = mock_exec
-
-        mock_analytics.get_weekly_analysis_with_forecast.return_value = {
-            "city": "Москва",
-            "past_week": {
-                "period": {"start": MagicMock(strftime=MagicMock(return_value="01.04")), "end": MagicMock(strftime=MagicMock(return_value="07.04"))},
-                "trends": {"temperature": {"description": "повысилась", "value": 15.5}}
+def _analysis() -> dict:
+    return {
+        "city": "Москва",
+        "past_week": {
+            "period": {
+                "start": datetime.date(2026, 4, 1),
+                "end": datetime.date(2026, 4, 7),
             },
-            "next_week_forecast": []
-        }
+            "trends": {
+                "temperature": {"description": "повышение", "value": 5.0},
+                "humidity": {"description": "понижение", "value": -5.0},
+                "wind": {"description": "ослабление", "value": -2.5},
+            },
+        },
+        "next_week_forecast": {
+            "daily_forecasts": [
+                {
+                    "date": datetime.date(2026, 4, 8),
+                    "avg_temp": 16.0,
+                    "min_temp": 12.0,
+                    "max_temp": 20.0,
+                    "avg_humidity": 55.0,
+                    "avg_wind": 2.8,
+                    "description": "переменная облачность",
+                }
+            ],
+            "summary": {
+                "avg_temp": 16.5,
+                "min_temp": 11.0,
+                "max_temp": 21.0,
+                "avg_humidity": 58.0,
+                "avg_wind": 3.0,
+            },
+            "days_count": 1,
+        },
+    }
 
-        await send_weekly_analysis(bot=bot_mock)
 
-        # Проверка, что ошибка была залогирована
-        mock_log_error.assert_called()
-        assert "API Error" in str(mock_log_error.call_args)
+def _patch_analysis(return_value):
+    return patch.object(
+        WeatherAnalytics,
+        "get_weekly_analysis_with_forecast",
+        new=AsyncMock(return_value=return_value),
+    )
+
+
+async def test_send_weekly_analysis_success(make_user):
+    """Активный пользователь получает сообщение с анализом и прогнозом."""
+    await make_user(user_id=123456)
+    bot = AsyncMock()
+
+    with _patch_analysis(_analysis()):
+        await scheduler.send_weekly_analysis(bot=bot)
+
+    bot.send_message.assert_awaited_once()
+    chat_id, text = bot.send_message.call_args.args
+    assert chat_id == 123456
+    assert "Москва" in text
+    assert "01.04 - 07.04" in text
+    assert "Прогноз на следующую неделю" in text
+
+
+async def test_send_weekly_analysis_no_data(make_user):
+    """Если анализа нет (None), сообщение не отправляется."""
+    await make_user(user_id=123456)
+    bot = AsyncMock()
+
+    with _patch_analysis(None):
+        await scheduler.send_weekly_analysis(bot=bot)
+
+    bot.send_message.assert_not_called()
+
+
+async def test_send_weekly_analysis_user_inactive(make_user):
+    """Неактивные пользователи не получают рассылку."""
+    await make_user(user_id=123456, is_active=False)
+    bot = AsyncMock()
+
+    with _patch_analysis(_analysis()):
+        await scheduler.send_weekly_analysis(bot=bot)
+
+    bot.send_message.assert_not_called()
+
+
+async def test_send_weekly_analysis_exception_handling(make_user):
+    """Ошибка отправки одному пользователю логируется и не рвёт рассылку."""
+    await make_user(user_id=111)
+    await make_user(user_id=222)
+    bot = AsyncMock()
+    bot.send_message.side_effect = [Exception("API Error"), None]
+
+    with (
+        _patch_analysis(_analysis()),
+        patch.object(scheduler.logger, "error") as mock_log_error,
+    ):
+        await scheduler.send_weekly_analysis(bot=bot)
+
+    assert bot.send_message.await_count == 2
+    mock_log_error.assert_called_once()
+    assert "API Error" in str(mock_log_error.call_args)

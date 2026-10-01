@@ -1,6 +1,9 @@
 import logging
-import aiohttp
 from datetime import datetime
+from typing import Any
+
+import aiohttp
+
 from bot.config.config import Config
 
 logger = logging.getLogger(__name__)
@@ -12,15 +15,10 @@ class WeatherAPI:
         self.api_key = config.WEATHER_API_KEY
         self.base_url = "https://api.openweathermap.org/data/2.5"
 
-    async def get_current_weather(self, city: str) -> None:
+    async def get_current_weather(self, city: str) -> dict[str, Any] | None:
         """Получает информацию о текущей погоде по названию города"""
         url = f"{self.base_url}/weather"
-        params = {
-            "q": city,
-            "appid": self.api_key,
-            "units": "metric",
-            "lang": "ru"
-        }
+        params = {"q": city, "appid": self.api_key, "units": "metric", "lang": "ru"}
 
         async with aiohttp.ClientSession() as session:
             try:
@@ -30,13 +28,17 @@ class WeatherAPI:
                         return self._parse_weather_data(data)
                     else:
                         error_data = await response.json()
-                        logger.error(f"Ошибка при получении данных о погоде: {error_data}")
+                        logger.error(
+                            f"Ошибка при получении данных о погоде: {error_data}"
+                        )
                         return None
             except Exception as e:
                 logger.error(f"Ошибка при получении данных о погоде: {e}")
                 return None
 
-    async def get_weather_by_coordinates(self, lat: float, lon: float) -> dict[float, float]:
+    async def get_weather_by_coordinates(
+        self, lat: float, lon: float
+    ) -> dict[str, Any] | None:
         """Получает информацию о текущей погоде по координатам"""
         url = f"{self.base_url}/weather"
         params = {
@@ -44,7 +46,7 @@ class WeatherAPI:
             "lon": lon,
             "appid": self.api_key,
             "units": "metric",
-            "lang": "ru"
+            "lang": "ru",
         }
 
         async with aiohttp.ClientSession() as session:
@@ -55,7 +57,9 @@ class WeatherAPI:
                         return self._parse_weather_data(data)
                     else:
                         error_data = await response.json()
-                        logger.error(f"Ошибка при получении данных о погоде: {error_data}")
+                        logger.error(
+                            f"Ошибка при получении данных о погоде: {error_data}"
+                        )
                         return None
             except Exception as e:
                 logger.error(f"Ошибка при получении данных о погоде: {e}")
@@ -69,7 +73,7 @@ class WeatherAPI:
             "appid": self.api_key,
             "units": "metric",
             "lang": "ru",
-            "cnt": days * 8  # Количество дней * 8 (каждые 3 часа)
+            "cnt": days * 8,  # Количество дней * 8 (каждые 3 часа)
         }
 
         async with aiohttp.ClientSession() as session:
@@ -80,7 +84,10 @@ class WeatherAPI:
                         return self._parse_forecast_data(data)
                     else:
                         error_data = await response.json()
-                        logger.error(f"Ошибка при получении данных о прогнозе погоды: {error_data}")
+                        logger.error(
+                            f"Ошибка при получении данных о "
+                            f"прогнозе погоды: {error_data}"
+                        )
                         return None
             except Exception as e:
                 logger.error(f"Ошибка при получении данных о прогнозе погоды: {e}")
@@ -105,7 +112,7 @@ class WeatherAPI:
                 "clouds": data["clouds"]["all"],
                 "timestamp": data["dt"],
                 "sunrise": data["sys"]["sunrise"],
-                "sunset": data["sys"]["sunset"]
+                "sunset": data["sys"]["sunset"],
             }
             return weather
         except Exception as e:
@@ -113,7 +120,8 @@ class WeatherAPI:
             return None
 
     def _parse_forecast_data(self, data):
-        """Обрабатывает данные о прогнозе погоды и возвращает информацию о прогнозе на несколько дней"""
+        """Обрабатывает данные о прогнозе погоды и возвращает
+        информацию о прогнозе на несколько дней"""
         try:
             city = data["city"]["name"]
             country = data["city"]["country"]
@@ -128,18 +136,20 @@ class WeatherAPI:
                 if day not in day_forecasts:
                     day_forecasts[day] = []
 
-                day_forecasts[day].append({
-                    "time": dt.time(),
-                    "temperature": item["main"]["temp"],
-                    "feels_like": item["main"]["feels_like"],
-                    "pressure": item["main"]["pressure"],
-                    "humidity": item["main"]["humidity"],
-                    "description": item["weather"][0]["description"],
-                    "icon": item["weather"][0]["icon"],
-                    "wind_speed": item["wind"]["speed"],
-                    "wind_direction": item["wind"]["deg"],
-                    "clouds": item["clouds"]["all"]
-                })
+                day_forecasts[day].append(
+                    {
+                        "time": dt.time(),
+                        "temperature": item["main"]["temp"],
+                        "feels_like": item["main"]["feels_like"],
+                        "pressure": item["main"]["pressure"],
+                        "humidity": item["main"]["humidity"],
+                        "description": item["weather"][0]["description"],
+                        "icon": item["weather"][0]["icon"],
+                        "wind_speed": item["wind"]["speed"],
+                        "wind_direction": item["wind"]["deg"],
+                        "clouds": item["clouds"]["all"],
+                    }
+                )
 
             # Создание сводного прогноза на каждый день
             for day, items in day_forecasts.items():
@@ -158,22 +168,20 @@ class WeatherAPI:
 
                 most_common_desc = max(descriptions.items(), key=lambda x: x[1])[0]
 
-                forecasts.append({
-                    "date": day,
-                    "avg_temp": avg_temp,
-                    "avg_humidity": avg_humidity,
-                    "avg_wind": avg_wind,
-                    "description": most_common_desc,
-                    "min_temp": min(item["temperature"] for item in items),
-                    "max_temp": max(item["temperature"] for item in items),
-                    "details": items
-                })
+                forecasts.append(
+                    {
+                        "date": day,
+                        "avg_temp": avg_temp,
+                        "avg_humidity": avg_humidity,
+                        "avg_wind": avg_wind,
+                        "description": most_common_desc,
+                        "min_temp": min(item["temperature"] for item in items),
+                        "max_temp": max(item["temperature"] for item in items),
+                        "details": items,
+                    }
+                )
 
-            return {
-                "city": city,
-                "country": country,
-                "forecasts": forecasts
-            }
+            return {"city": city, "country": country, "forecasts": forecasts}
 
         except Exception as e:
             logger.error(f"Ошибка при обработке данных о прогнозе погоды: {e}")
