@@ -197,32 +197,28 @@ class WeatherAnalytics:
                 user_result = await session.execute(user_stmt)
                 user = user_result.scalar_one_or_none()
 
-                if not user:
-                    logger.error(f"Пользователь c ID {user_id} не найден.")
-                    return None
+            if not user:
+                logger.error(f"Пользователь c ID {user_id} не найден.")
+                return None
 
-                past_week_analysis = await WeatherAnalytics.get_weekly_analysis(
-                    user_id
-                )  # анализ прошлой недели из бд
-                forecast_data = await weather_api.get_forecast(user.city, days=5)
+            past_week_analysis = await WeatherAnalytics.get_weekly_analysis(user_id)
+            forecast_data = await weather_api.get_forecast(user.city, days=5)
 
-                if not forecast_data:
-                    logger.error(
-                        f"Ошибка при получении прогноза погоды для {user.city}"
-                    )
-                    # Если нет прогноза, вернем хотя бы анализ прошлой недели
-                    return {
-                        "city": user.city,
-                        "past_week": past_week_analysis,
-                        "next_week_forecast": None,
-                    }
-                # обработка прогноза
-                forecast_analysis = WeatherAnalytics._analyze_forecast(forecast_data)
+            if not forecast_data:
+                logger.error(f"Ошибка при получении прогноза погоды для {user.city}")
+                # Если нет прогноза, вернет хотя бы анализ прошлой недели
                 return {
                     "city": user.city,
                     "past_week": past_week_analysis,
-                    "next_week_forecast": forecast_analysis,
+                    "next_week_forecast": None,
                 }
+            # обработка прогноза
+            forecast_analysis = WeatherAnalytics._analyze_forecast(forecast_data)
+            return {
+                "city": user.city,
+                "past_week": past_week_analysis,
+                "next_week_forecast": forecast_analysis,
+            }
         except Exception as e:
             logger.error(f"Ошибка при получении анализа погоды с прогнозом: {e}")
             return None
