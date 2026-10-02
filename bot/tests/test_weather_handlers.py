@@ -2,10 +2,10 @@ import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from bot.database.database import async_session
-from bot.database.models import User
+from bot.database.models import User, WeatherData
 from bot.handlers import weather
 
 TELEGRAM_ID = 123456
@@ -53,3 +53,19 @@ async def test_weather_now_updates_timezone_offset(make_user):
             select(User.timezone_offset).where(User.user_id == TELEGRAM_ID)
         )
         assert result.scalar_one() == 25200
+
+
+async def test_weather_now_does_not_save_weather_data(make_user):
+    """'Погода сейчас' не пишет в WeatherData: анализ идёт по утренней рассылке."""
+    await make_user(user_id=TELEGRAM_ID)
+
+    with patch.object(
+        weather.weather_api,
+        "get_current_weather",
+        new=AsyncMock(return_value=_weather(10800)),
+    ):
+        await weather.get_weather_now(_message())
+
+    async with async_session() as session:
+        result = await session.execute(select(func.count()).select_from(WeatherData))
+        assert result.scalar_one() == 0
