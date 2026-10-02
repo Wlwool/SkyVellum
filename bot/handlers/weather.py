@@ -37,7 +37,6 @@ async def get_weather_now(message: types.Message):
         return
 
     # получение данных о погоде для города, который был выбран пользователем
-    # weather_data = await weather_api.get_current_weather(user.city)
     weather_data: dict[str, Any] | None = await weather_api.get_current_weather(
         user.city  # type: ignore[arg-type]
     )
@@ -79,10 +78,8 @@ async def get_weather_now(message: types.Message):
         f"🔍 {weather_data['description'].capitalize()}\n\n"
         f"🌅 Восход солнца: {sunrise_time}\n"
         f"🌇 Закат солнца: {sunset_time}\n\n"
-        f"🕒 Данные обновлены: {formatted_time}\n"  # message.date.strftime('%H:%M:%S')
-        f"*** Хорошего дня! ***"
-    )  # Облачность: 100% Восход солнца: 08:27:39
-
+        f"🕒 Данные обновлены: {formatted_time}\n*** Хорошего дня! ***"
+    )
     await message.answer(weather_message, reply_markup=get_weather_keyboard())
 
 
@@ -108,8 +105,7 @@ async def get_weather_forecast(message: types.Message) -> None:
             return
         # получение прогноза погоды для города, который был выбран пользователем
         forecast_data = await weather_api.get_forecast(user.city, days=5)
-        logger.info(f"Forecast data:{forecast_data}")
-        print(f"Forecast data - {forecast_data} -")
+        logger.debug(f"Прогноз получен для города {user.city}")
 
         if not forecast_data:
             await message.answer(
@@ -209,7 +205,6 @@ async def get_weekly_analysis(message: types.Message) -> None:
             f"влажность {day_data['avg_humidity']:.0f}%, "
             f"ветер {day_data['avg_wind']:.1f} м/с\n"
         )
-
     await message.answer(analysis_message, reply_markup=get_weather_keyboard())
 
 
@@ -218,9 +213,6 @@ async def change_city(message: types.Message, state: FSMContext):
     from bot.handlers.registration import register_command
 
     await register_command(message, state)
-    # await register_command(
-    # message,
-    # FSMContext(message.bot.state_storage, message.chat.id, message.from_user.id))
 
 
 def register_weather_handlers(dp: Dispatcher):
