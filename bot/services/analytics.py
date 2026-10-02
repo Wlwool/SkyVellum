@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import and_
@@ -29,7 +29,7 @@ class WeatherAnalytics:
                     return None
 
                 # определение временного диапазона за последние 7 дней
-                end_date = datetime.now()
+                end_date = datetime.now(UTC).replace(tzinfo=None)
                 start_date = end_date - timedelta(days=7)
 
                 # получение погодных данных за неделю
