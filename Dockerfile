@@ -20,4 +20,4 @@ COPY . .
 
 RUN mkdir -p /app/database /app/logs
 
-CMD ["python", "main.py"]
+CMD ["sh", "-c", "alembic upgrade head && exec python main.py"]
