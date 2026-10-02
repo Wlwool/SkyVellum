@@ -9,6 +9,8 @@ from bot.config.config import Config
 logger = logging.getLogger(__name__)
 config = Config()
 
+MIN_READINGS_PER_DAY = 4
+
 
 class WeatherAPI:
     def __init__(self):
@@ -155,6 +157,8 @@ class WeatherAPI:
 
             # Создание сводного прогноза на каждый день
             for day, items in day_forecasts.items():
+                if len(items) < MIN_READINGS_PER_DAY:
+                    continue
                 avg_temp = sum(item["temperature"] for item in items) / len(items)
                 avg_humidity = sum(item["humidity"] for item in items) / len(items)
                 avg_wind = sum(item["wind_speed"] for item in items) / len(items)

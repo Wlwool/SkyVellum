@@ -14,15 +14,17 @@ CURRENT_PAYLOAD = {
     "dt": 1790010000,
 }
 
-_BASE_TS = 1_790_000_000  # шаг 86400 с гарантирует разные даты в любом поясе
+_BASE_TS = 1_790_000_000
+_DAY0 = 1_789_948_800
 
 
-def _forecast_payload(days: int = 3) -> dict:
+def _forecast_payload(days: int = 3, per_day: int = 8, start: int = _DAY0) -> dict:
+    """days суток по per_day записей с шагом 3 часа, начиная с момента start."""
     return {
         "city": {"name": "Москва", "country": "RU"},
         "list": [
             {
-                "dt": _BASE_TS + i * 86400,
+                "dt": start + d * 86400 + k * 10800,
                 "main": {
                     "temp": 10.0,
                     "feels_like": 9.0,
@@ -33,7 +35,8 @@ def _forecast_payload(days: int = 3) -> dict:
                 "wind": {"speed": 4.0, "deg": 180},
                 "clouds": {"all": 100},
             }
-            for i in range(days)
+            for d in range(days)
+            for k in range(per_day)
         ],
     }
 
@@ -119,7 +122,7 @@ async def test_invalid_city():
 
 async def test_forecast_days_use_city_timezone():
     """День прогноза определяется поясом города, а не сервера."""
-    payload = _forecast_payload(days=1)
+    payload = _forecast_payload(days=1, per_day=4, start=_DAY0 + 14 * 3600)
     payload["city"]["timezone"] = 45900  # UTC+12:45
 
     patcher, _ = _fake_http(200, payload)
@@ -128,3 +131,18 @@ async def test_forecast_days_use_city_timezone():
 
     assert data is not None
     assert data["forecasts"][0]["date"] == datetime.date(2026, 9, 22)
+
+
+async def test_forecast_skips_partial_days():
+    """Дни, где записей меньше половины суток, в прогноз не попадают."""
+    payload = _forecast_payload(days=4)
+    payload["list"] = payload["list"][6:-5]
+    patcher, _ = _fake_http(200, payload)
+    with patcher:
+        data = await WeatherAPI().get_forecast("Москва", days=4)
+
+    assert data is not None
+    assert [f["date"] for f in data["forecasts"]] == [
+        datetime.date(2026, 9, 22),
+        datetime.date(2026, 9, 23),
+    ]
