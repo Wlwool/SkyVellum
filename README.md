@@ -40,7 +40,7 @@ SkyVellum — погодный бот, который следит за пого
    docker compose up --build  
    docker compose up -d  
 ```
-Миграции БД применяются автоматически при старте контейнера
+Миграции БД применяются автоматически при старте контейнера.
 
 3. Управление контейнером:
 ```sh
@@ -73,6 +73,7 @@ uv run ruff check .            # линтер
 uv run ruff format .           # форматирование
 uv run mypy                    # проверка типов
 uv run pytest                  # тесты
+uv run alembic revision --autogenerate -m "описание"  # новая миграция
 ```
 
 ## База данных
