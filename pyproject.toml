@@ -8,9 +8,9 @@ dependencies = [
     "aiogram>=3.19,<4",
     "aiohttp>=3.11",
     "aiosqlite>=0.21",
+    "alembic>=1.20.0",
     "apscheduler>=3.11,<4",
     "python-dotenv>=1.0",
-    "pytz>=2025.1",
     "sqlalchemy>=2.0.39,<2.1",
 ]
 
@@ -25,7 +25,6 @@ dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "ruff>=0.16.9",
-    "types-pytz>=2026.4.0.20260926",
 ]
 
 [tool.ruff]

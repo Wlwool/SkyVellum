@@ -69,6 +69,7 @@ async def process_city(message: types.Message, state: FSMContext) -> None:
             existing_user.city = city  # type: ignore[assignment]
             existing_user.latitude = weather_data["lat"]
             existing_user.longitude = weather_data["lon"]
+            existing_user.timezone_offset = weather_data["timezone"]
             await session.commit()
             logger.info(f"Обновление данных пользователя ({user_id}), город: {city}")
             await message.answer(
@@ -86,6 +87,7 @@ async def process_city(message: types.Message, state: FSMContext) -> None:
                 city=city,
                 latitude=weather_data["lat"],
                 longitude=weather_data["lon"],
+                timezone_offset=weather_data["timezone"],
             )
             session.add(new_user)
             await session.commit()

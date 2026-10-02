@@ -37,10 +37,18 @@ def make_user(db):
     from bot.database.models import User
 
     async def _make(
-        user_id: int = 123456, city: str = "Москва", is_active: bool = True
+        user_id: int = 123456,
+        city: str = "Москва",
+        is_active: bool = True,
+        timezone_offset: int = 0,
     ) -> int:
         async with async_session() as session:
-            user = User(user_id=user_id, city=city, is_active=is_active)
+            user = User(
+                user_id=user_id,
+                city=city,
+                is_active=is_active,
+                timezone_offset=timezone_offset,
+            )
             session.add(user)
             await session.commit()
             return user.id  # type: ignore[return-value]

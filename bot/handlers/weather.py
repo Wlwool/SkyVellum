@@ -9,6 +9,7 @@ from bot.database.database import async_session
 from bot.database.models import User, WeatherData
 from bot.keyboards.reply import get_start_keyboard, get_weather_keyboard
 from bot.services.analytics import WeatherAnalytics
+from bot.services.users import update_timezone_offset
 from bot.services.weather_api import WeatherAPI
 from bot.utils.timeutils import format_local_time
 
@@ -47,6 +48,10 @@ async def get_weather_now(message: types.Message):
             reply_markup=get_weather_keyboard(),
         )
         return
+    await update_timezone_offset(
+        user.id,  # type: ignore[arg-type]
+        weather_data["timezone"],
+    )
 
     # сохранение данных о погоде в базу данных
     async with async_session() as session:

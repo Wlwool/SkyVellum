@@ -15,6 +15,7 @@ class User(Base):  # type: ignore[valid-type,misc]
         city (str): Название города для прогноза погоды (обязательно)
         latitude (float): Географическая широта (для точного прогноза)
         longitude (float): Географическая долгота (для точного прогноза)
+        timezone_offset (int): смещение часового пояса города от UTC в секундах
         is_active (bool): Флаг активности пользователя (для мягкого удаления)
         registered_at (datetime): Дата и время регистрации (автоматически)
 
@@ -32,6 +33,7 @@ class User(Base):  # type: ignore[valid-type,misc]
     city = Column(String, nullable=False)
     latitude = Column(Float)
     longitude = Column(Float)
+    timezone_offset = Column(Integer, nullable=False, default=0, server_default="0")
     is_active = Column(Boolean, default=True)
     registered_at = Column(DateTime, server_default=func.now())
 

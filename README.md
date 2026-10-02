@@ -25,7 +25,7 @@ SkyVellum — погодный бот, который следит за пого
 - **Язык:** Python 3.13
 - **Бот:** aiogram 3, FSM для регистрации, polling
 - **Данные о погоде:** OpenWeather API (aiohttp)
-- **БД:** SQLite, SQLAlchemy 2.0 (async, aiosqlite)
+- **БД:** SQLite, SQLAlchemy 2.0 (async, aiosqlite), миграции alembic
 - **Планировщик:** APScheduler для рассылок
 - **Логирование:** ротация логов (10 МБ × 5 файлов)
 - **Зависимости:** uv
@@ -40,6 +40,8 @@ SkyVellum — погодный бот, который следит за пого
    docker compose up --build  
    docker compose up -d  
 ```
+Миграции БД применяются автоматически при старте контейнера.
+
 3. Управление контейнером:
 ```sh
    docker compose logs -f bot  # Просмотр логов
@@ -60,6 +62,7 @@ DB_URL=sqlite+aiosqlite:///database/weather_bot.db
 ```sh
 mkdir -p database logs
 uv sync
+uv run alembic upgrade head
 uv run python main.py
 ```
 
@@ -70,6 +73,7 @@ uv run ruff check .            # линтер
 uv run ruff format .           # форматирование
 uv run mypy                    # проверка типов
 uv run pytest                  # тесты
+uv run alembic revision --autogenerate -m "описание"  # новая миграция
 ```
 
 ## База данных

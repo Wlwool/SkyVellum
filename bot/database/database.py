@@ -4,10 +4,10 @@
 Содержит:
 - Базовый класс для моделей SQLAlchemy
 - Настройки асинхронного подключения к БД
-- Утилиты для управления подключением
+- Генератор асинхронных сессий
+Схема БД создаётся и меняется миграциями Alembic
 """
 
-import logging
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -19,7 +19,6 @@ from sqlalchemy.orm import declarative_base
 
 from bot.config.config import Config
 
-logger = logging.getLogger(__name__)
 config = Config()
 
 
@@ -28,23 +27,6 @@ Base = declarative_base()  # базовый класс для моделей д�
 # Создаем асинхронный движок и сессию для работы с базой данных
 engine = create_async_engine(config.DB_URL, echo=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
-
-
-async def setup_db():
-    """Инициализация структуры базы данных при запуске бота.
-
-    Выполняет:
-    - Создание всех таблиц, определенных в моделях
-    - Проверку подключения к БД
-    - Логирование процесса инициализации
-    """
-    import bot.database.models  # noqa: F401
-
-    async with engine.begin() as conn:
-        logger.info("Создание таблиц в базе данных")
-        await conn.run_sync(Base.metadata.create_all)
-
-    logger.info("Подключение к базе данных завершено")
 
 
 async def get_session() -> AsyncGenerator[AsyncSession]:

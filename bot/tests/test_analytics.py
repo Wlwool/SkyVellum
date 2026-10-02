@@ -78,3 +78,39 @@ async def test_weekly_analysis_window_is_utc(make_user, tz_los_angeles):
     analysis = await WeatherAnalytics.get_weekly_analysis(user_id)
 
     assert analysis is not None
+
+
+async def test_weekly_analysis_groups_by_city_local_date(make_user):
+    """00:30 и 23:00 по местному времени это один день, хотя в UTC их два."""
+    user_id = await make_user(user_id=777, city="Москва", timezone_offset=10800)
+
+    today = datetime.datetime.now(datetime.UTC).replace(
+        tzinfo=None, hour=0, minute=0, second=0, microsecond=0
+    )
+    base = today - datetime.timedelta(days=3)  # 00:00 UTC, три дня назад
+    # 21:30 UTC накануне = 00:30 в Москве, 20:00 UTC = 23:00 в Москве
+    moments = [
+        base - datetime.timedelta(hours=2, minutes=30),
+        base + datetime.timedelta(hours=20),
+    ]
+    async with async_session() as session:
+        for moment in moments:
+            session.add(
+                WeatherData(
+                    user_id=user_id,
+                    temperature=10.0,
+                    feels_like=9.0,
+                    pressure=1010,
+                    humidity=70,
+                    wind_speed=3.0,
+                    description="Облачно",
+                    date=moment,
+                )
+            )
+        await session.commit()
+
+    analysis = await WeatherAnalytics.get_weekly_analysis(user_id)
+
+    assert analysis is not None
+    assert len(analysis["daily_analysis"]) == 1
+    assert analysis["period"]["start"] == base.date()

@@ -5,7 +5,6 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from bot.config.config import Config
-from bot.database.database import setup_db
 from bot.handlers import register_all_handlers
 from bot.utils.logger import setup_logger
 from bot.utils.scheduler import schedule_jobs
@@ -23,9 +22,6 @@ async def main():
     bot = Bot(token=config.BOT_TOKEN)
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
-
-    # Запуск базы данных
-    await setup_db()
 
     # Регистрация хэндлеров
     register_all_handlers(dp)
