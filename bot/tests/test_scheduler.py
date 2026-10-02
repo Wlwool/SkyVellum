@@ -155,6 +155,7 @@ def _weather() -> dict:
         "humidity": 70,
         "wind_speed": 3.0,
         "description": "ясно",
+        "timezone": 10800,
     }
 
 
@@ -209,3 +210,34 @@ async def test_daily_blocked_user_is_deactivated(make_user):
     assert bot.send_message.await_count == 2
     assert await _is_active(111) is False
     assert await _is_active(222) is True
+
+
+async def _timezone_offset(user_id: int) -> int:
+    async with async_session() as session:
+        result = await session.execute(
+            select(User.timezone_offset).where(User.user_id == user_id)
+        )
+        return int(result.scalar_one())
+
+
+async def test_daily_updates_timezone_offset(make_user):
+    """Утренняя рассылка подтягивает смещение пояса из ответа OpenWeather."""
+    await make_user(user_id=111)
+    bot = AsyncMock()
+    weather = {**_weather(), "timezone": 25200}
+
+    with (
+        patch.object(
+            scheduler.weather_api,
+            "get_current_weather",
+            new=AsyncMock(return_value=weather),
+        ),
+        patch.object(
+            WeatherAnalytics,
+            "save_weather_data_for_week_analysis",
+            new=AsyncMock(),
+        ),
+    ):
+        await scheduler.send_daily_weather(bot=bot)
+
+    assert await _timezone_offset(111) == 25200

@@ -12,6 +12,7 @@ from sqlalchemy.future import select
 from bot.database.database import async_session
 from bot.database.models import User
 from bot.services.analytics import WeatherAnalytics
+from bot.services.users import update_timezone_offset
 from bot.services.weather_api import WeatherAPI
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,10 @@ async def send_daily_weather(bot: Bot):
                     f"пользователя {user.user_id}, город: {user.city}"
                 )
                 continue
+            await update_timezone_offset(
+                user.id,  # type: ignore[arg-type]
+                weather_data["timezone"],
+            )
 
             # сохранение данных о погоде для еженедельного анализа
             await WeatherAnalytics.save_weather_data_for_week_analysis(
