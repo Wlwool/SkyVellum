@@ -55,15 +55,20 @@ class WeatherAnalytics:
                     )
                     return None
 
-                return WeatherAnalytics._analyze_weekly_data(weather_data, user.city)
+                return WeatherAnalytics._analyze_weekly_data(
+                    weather_data, user.city, user.timezone_offset
+                )
         except Exception as e:
             logger.error(f"Ошибка при получении анализа погоды: {e}")
             return None
 
     @staticmethod
-    def _analyze_weekly_data(weather_data: list, city: str) -> dict[str, Any] | None:
+    def _analyze_weekly_data(
+        weather_data: list, city: str, timezone_offset: int
+    ) -> dict[str, Any] | None:
         """Анализ погодных данных за неделю и формирование отчета:
-        Группирует данные по дням.
+        Группирует данные по дням по местной дате города (время в БД хранится
+        в UTC, timezone_offset - смещение города от UTC в секундах).
         Вычисляет средние, минимальные и максимальные значения для каждого дня.
         Определяет тенденции изменения температуры, влажности и ветра.
         Формирует прогноз на следующую неделю на основе тенденций.
@@ -81,8 +86,9 @@ class WeatherAnalytics:
             daily_data: dict[Any, list[WeatherData]] = {}
 
             # Группировка данных о погоде по дням
+            offset = timedelta(seconds=timezone_offset)
             for data in weather_data:
-                day = data.date.date() if hasattr(data.date, "date") else data.date
+                day = (data.date + offset).date()
                 if day not in daily_data:
                     daily_data[day] = []
                 daily_data[day].append(data)
