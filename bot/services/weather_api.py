@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
@@ -111,6 +111,7 @@ class WeatherAPI:
                 "wind_direction": data["wind"]["deg"],
                 "clouds": data["clouds"]["all"],
                 "timestamp": data["dt"],
+                "timezone": data.get("timezone", 0),
                 "sunrise": data["sys"]["sunrise"],
                 "sunset": data["sys"]["sunset"],
             }
@@ -125,12 +126,13 @@ class WeatherAPI:
         try:
             city = data["city"]["name"]
             country = data["city"]["country"]
+            tz_offset = data["city"].get("timezone", 0)
             forecasts = []
 
             # Группируем прогнозы по дням
             day_forecasts = {}
             for item in data["list"]:
-                dt = datetime.fromtimestamp(item["dt"])
+                dt = datetime.fromtimestamp(item["dt"] + tz_offset, UTC)
                 day = dt.date()
 
                 if day not in day_forecasts:

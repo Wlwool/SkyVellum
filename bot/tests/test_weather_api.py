@@ -1,3 +1,4 @@
+import datetime
 from unittest.mock import patch
 
 from bot.services.weather_api import WeatherAPI
@@ -114,3 +115,16 @@ async def test_invalid_city():
         data = await WeatherAPI().get_current_weather("InvalidCityName")
 
     assert data is None
+
+
+async def test_forecast_days_use_city_timezone():
+    """День прогноза определяется поясом города, а не сервера."""
+    payload = _forecast_payload(days=1)
+    payload["city"]["timezone"] = 45900  # UTC+12:45
+
+    patcher, _ = _fake_http(200, payload)
+    with patcher:
+        data = await WeatherAPI().get_forecast("Москва", days=1)
+
+    assert data is not None
+    assert data["forecasts"][0]["date"] == datetime.date(2026, 9, 22)
