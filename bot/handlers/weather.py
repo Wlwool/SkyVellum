@@ -1,10 +1,8 @@
 import logging
-from datetime import datetime
 from typing import Any
 
 from aiogram import Dispatcher, F, types
 from aiogram.fsm.context import FSMContext
-from pytz import timezone, utc
 from sqlalchemy.future import select
 
 from bot.database.database import async_session
@@ -12,6 +10,7 @@ from bot.database.models import User, WeatherData
 from bot.keyboards.reply import get_start_keyboard, get_weather_keyboard
 from bot.services.analytics import WeatherAnalytics
 from bot.services.weather_api import WeatherAPI
+from bot.utils.timeutils import format_local_time
 
 logger = logging.getLogger(__name__)
 weather_api = WeatherAPI()
@@ -21,9 +20,6 @@ async def get_weather_now(message: types.Message):
     """Получение текущей информации о погоде"""
     if message.from_user is None:
         return
-    utc_time = message.date.astimezone(timezone("Europe/Moscow"))
-    formatted_time = utc_time.strftime("%H:%M:%S")
-
     user_id = message.from_user.id
 
     # получение данных о пользователе
@@ -68,17 +64,10 @@ async def get_weather_now(message: types.Message):
         await session.commit()
 
     # Преобразование времени заката и рассвета в читаемый формат
-    moscow_tz = timezone("Europe/Moscow")
-    sunrise_time = (
-        datetime.fromtimestamp(weather_data["sunrise"], utc)
-        .astimezone(moscow_tz)
-        .strftime("%H:%M:%S")
-    )
-    sunset_time = (
-        datetime.fromtimestamp(weather_data["sunset"], utc)
-        .astimezone(moscow_tz)
-        .strftime("%H:%M:%S")
-    )
+    tz_offset = weather_data["timezone"]
+    sunrise_time = format_local_time(weather_data["sunrise"], tz_offset)
+    sunset_time = format_local_time(weather_data["sunset"], tz_offset)
+    formatted_time = format_local_time(int(message.date.timestamp()), tz_offset)
 
     # ответное сообщение с текущей погодой пользователю
     weather_message = (
