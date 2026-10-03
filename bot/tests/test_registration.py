@@ -29,7 +29,7 @@ async def _register(city: str, tz_offset: int) -> None:
     api.get_current_weather = AsyncMock(
         return_value={"lat": 55.0, "lon": 83.0, "timezone": tz_offset}
     )
-    with patch("bot.handlers.registration.WeatherAPI", return_value=api):
+    with patch("bot.handlers.registration.weather_api", api):
         await process_city(_message(city), AsyncMock())
 
 
@@ -65,7 +65,7 @@ async def _register_with_error(
     api.get_current_weather = AsyncMock(side_effect=error)
     message = _message("Новосибирск")
     state = AsyncMock()
-    with patch("bot.handlers.registration.WeatherAPI", return_value=api):
+    with patch("bot.handlers.registration.weather_api", api):
         await process_city(message, state)
     return message, state
 

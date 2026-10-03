@@ -14,11 +14,11 @@ from bot.database.database import async_session
 from bot.database.models import User
 from bot.services.analytics import WeatherAnalytics
 from bot.services.users import get_active_users, update_timezone_offset
-from bot.services.weather_api import WeatherAPI, WeatherAPIError
+from bot.services.weather_api import WeatherAPIError, weather_api
 from bot.utils.timeutils import is_local_time_due
 
 logger = logging.getLogger(__name__)
-weather_api = WeatherAPI()
+
 
 DAILY_HOUR = 8  # местное время утренней рассылки
 WEEKLY_HOUR = 12  # местное время воскресной рассылки

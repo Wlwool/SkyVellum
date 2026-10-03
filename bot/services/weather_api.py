@@ -12,6 +12,7 @@ config = Config()
 MIN_READINGS_PER_DAY = 4
 # коды OpenWeather
 CITY_NOT_FOUND_STATUSES = (400, 404)
+REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=10)
 
 
 class WeatherAPIError(Exception):
@@ -32,19 +33,33 @@ class WeatherAPI:
     def __init__(self):
         self.api_key = config.WEATHER_API_KEY
         self.base_url = "https://api.openweathermap.org/data/2.5"
+        self._session: aiohttp.ClientSession | None = None
+
+    def _get_session(self) -> aiohttp.ClientSession:
+        """Одна сессия на приложение. Создаётся при первом запросе,
+        уже внутри работающего цикла событий."""
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession(timeout=REQUEST_TIMEOUT)
+        return self._session
+
+    async def close(self) -> None:
+        """Закрывает сессию"""
+        if self._session is not None and not self._session.closed:
+            await self._session.close()
+        self._session = None
 
     async def _get_json(
         self, url: str, params: dict[str, Any], what: str
     ) -> dict[str, Any]:
         """GET-запрос к OpenWeather. Возвращает JSON успешного ответа.
-        Бросает CityNotFoundError (400/404) или WeatherServiceError (остальное).
+        Бросает CityNotFoundError (400/404) или WeatherServiceError.
         what - что запрашивали, для текста в логах."""
+        session = self._get_session()
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, params=params) as response:
-                    status = response.status
-                    if status == 200:
-                        return await response.json()
+            async with session.get(url, params=params) as response:
+                status = response.status
+                if status == 200:
+                    return await response.json()
         except (aiohttp.ClientError, TimeoutError, ValueError) as e:
             logger.error(f"Ошибка при получении данных о {what}: {e!r}")
             raise WeatherServiceError(f"Сбой запроса: {e!r}") from e
@@ -189,3 +204,6 @@ class WeatherAPI:
         except (KeyError, IndexError, TypeError, ValueError) as e:
             logger.error(f"Ошибка при обработке данных о прогнозе погоды: {e!r}")
             raise WeatherServiceError("Неожиданный формат ответа о прогнозе") from e
+
+
+weather_api = WeatherAPI()

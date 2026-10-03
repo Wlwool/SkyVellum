@@ -30,9 +30,11 @@ async def refresh_timezone_offsets(api: WeatherAPI) -> tuple[int, int]:
 
 
 async def _main() -> None:
+    api = WeatherAPI()
     try:
-        updated, failed = await refresh_timezone_offsets(WeatherAPI())
+        updated, failed = await refresh_timezone_offsets(api)
     finally:
+        await api.close()
         await engine.dispose()
     print(f"Смещение получено: {updated}, не удалось: {failed}")
 

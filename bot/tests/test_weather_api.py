@@ -72,13 +72,11 @@ class FakeSession:
     def __init__(self, response: FakeResponse, error: Exception | None = None):
         self._response = response
         self._error = error
+        self.closed = False
         self.calls: list[tuple[str, dict]] = []
 
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *exc):
-        return None
+    async def close(self) -> None:
+        self.closed = True
 
     def get(self, url: str, params: dict | None = None) -> FakeResponse:
         self.calls.append((url, params or {}))
@@ -242,3 +240,49 @@ async def test_forecast_without_wind_direction_and_clouds():
         data = await WeatherAPI().get_forecast("Москва", days=1)
 
     assert len(data["forecasts"]) == 1
+
+
+async def test_session_is_reused_between_requests():
+    """Одна сессия на все запросы (в ней пул соединений), а не новая на каждый."""
+    patcher, _ = _fake_http(200, CURRENT_PAYLOAD)
+    api = WeatherAPI()
+    with patcher as session_factory:
+        await api.get_current_weather("Москва")
+        await api.get_current_weather("Москва")
+
+    assert session_factory.call_count == 1
+
+
+async def test_session_has_request_timeout():
+    """Таймаут задан явно: по умолчанию у aiohttp он 5 минут."""
+    patcher, _ = _fake_http(200, CURRENT_PAYLOAD)
+    with patcher as session_factory:
+        await WeatherAPI().get_current_weather("Москва")
+
+    assert session_factory.call_args.kwargs["timeout"].total == 10
+
+
+async def test_close_closes_session():
+    patcher, session = _fake_http(200, CURRENT_PAYLOAD)
+    api = WeatherAPI()
+    with patcher:
+        await api.get_current_weather("Москва")
+        await api.close()
+
+    assert session.closed is True
+
+
+async def test_close_without_requests_is_safe():
+    """Бот остановили, не сделав ни одного запроса: close() не должен падать."""
+    await WeatherAPI().close()
+
+
+def test_modules_share_one_weather_api():
+    """Везде один экземпляр WeatherAPI, значит одна сессия на приложение."""
+    from bot.handlers import registration, weather
+    from bot.services.weather_api import weather_api
+    from bot.utils import scheduler
+
+    assert scheduler.weather_api is weather_api
+    assert weather.weather_api is weather_api
+    assert registration.weather_api is weather_api

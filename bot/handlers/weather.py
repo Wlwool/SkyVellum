@@ -11,11 +11,10 @@ from bot.handlers.texts import CITY_NOT_FOUND_SAVED, SERVICE_UNAVAILABLE
 from bot.keyboards.reply import get_start_keyboard, get_weather_keyboard
 from bot.services.analytics import WeatherAnalytics
 from bot.services.users import update_timezone_offset
-from bot.services.weather_api import CityNotFoundError, WeatherAPI, WeatherAPIError
+from bot.services.weather_api import CityNotFoundError, WeatherAPIError, weather_api
 from bot.utils.timeutils import format_local_time
 
 logger = logging.getLogger(__name__)
-weather_api = WeatherAPI()
 
 
 def _api_error_text(error: WeatherAPIError) -> str:
