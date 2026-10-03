@@ -158,7 +158,7 @@ async def get_weather_forecast(message: types.Message) -> None:
         forecast_message = _format_forecast(
             forecast_data, forecast_data["forecasts"][:5], "Прогноз погоды на 5 дней"
         )
-        await message.answer(forecast_message, reply_markup=get_weather_keyboard())
+        await message.answer(forecast_message, reply_markup=get_forecast_keyboard())
     except WeatherAPIError as e:
         await message.answer(_api_error_text(e), reply_markup=get_weather_keyboard())
     except Exception as e:

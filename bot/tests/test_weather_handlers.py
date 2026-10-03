@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from aiogram import types
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.types import InlineKeyboardMarkup
 from sqlalchemy import func, select
 
 from bot.database.database import async_session
@@ -315,3 +316,19 @@ async def test_forecast_callback_unregistered_user(make_user):
 
     callback.message.edit_text.assert_not_awaited()
     callback.answer.assert_awaited_once()
+
+
+async def test_forecast_has_period_buttons(make_user):
+    """Под прогнозом на 5 дней показаны инлайн-кнопки выбора периода."""
+    await make_user(user_id=TELEGRAM_ID)
+    message = _message()
+
+    with patch.object(
+        weather.weather_api,
+        "get_forecast",
+        new=AsyncMock(return_value=_forecast_data()),
+    ):
+        await weather.get_weather_forecast(message)
+
+    markup = message.answer.call_args.kwargs["reply_markup"]
+    assert isinstance(markup, InlineKeyboardMarkup)
