@@ -77,21 +77,6 @@ class WeatherAPI:
         data = await self._get_json(f"{self.base_url}/weather", params, "погоде")
         return self._parse_weather_data(data)
 
-    async def get_weather_by_coordinates(
-        self, lat: float, lon: float
-    ) -> dict[str, Any]:
-        """Получает информацию о текущей погоде по координатам.
-        Бросает WeatherAPIError (то же, что get_current_weather)."""
-        params = {
-            "lat": lat,
-            "lon": lon,
-            "appid": self.api_key,
-            "units": "metric",
-            "lang": "ru",
-        }
-        data = await self._get_json(f"{self.base_url}/weather", params, "погоде")
-        return self._parse_weather_data(data)
-
     async def get_forecast(self, city: str, days: int = 7) -> dict[str, Any]:
         """Получает прогноз погоды на несколько дней.
         Бросает CityNotFoundError или WeatherServiceError."""
