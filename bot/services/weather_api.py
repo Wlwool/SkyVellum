@@ -107,12 +107,12 @@ class WeatherAPI:
                 "description": data["weather"][0]["description"],
                 "icon": data["weather"][0]["icon"],
                 "wind_speed": data["wind"]["speed"],
-                "wind_direction": data["wind"]["deg"],
-                "clouds": data["clouds"]["all"],
+                "wind_direction": data["wind"].get("deg"),
+                "clouds": data.get("clouds", {}).get("all"),
                 "timestamp": data["dt"],
                 "timezone": data.get("timezone", 0),
-                "sunrise": data["sys"]["sunrise"],
-                "sunset": data["sys"]["sunset"],
+                "sunrise": data["sys"].get("sunrise"),
+                "sunset": data["sys"].get("sunset"),
             }
             return weather
         except (KeyError, IndexError, TypeError) as e:
@@ -147,8 +147,8 @@ class WeatherAPI:
                         "description": item["weather"][0]["description"],
                         "icon": item["weather"][0]["icon"],
                         "wind_speed": item["wind"]["speed"],
-                        "wind_direction": item["wind"]["deg"],
-                        "clouds": item["clouds"]["all"],
+                        "wind_direction": item["wind"].get("deg"),
+                        "clouds": item.get("clouds", {}).get("all"),
                     }
                 )
 

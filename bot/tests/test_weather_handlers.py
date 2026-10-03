@@ -108,3 +108,19 @@ async def test_forecast_api_errors(make_user, error, expected):
         await weather.get_weather_forecast(message)
 
     assert expected in _answered_text(message)
+
+
+async def test_weather_now_without_sunrise_and_sunset(make_user):
+    """Нет восхода и заката (полярный день или ночь)"""
+    await make_user(user_id=TELEGRAM_ID)
+    message = _message()
+    data = {**_weather(10800), "sunrise": None, "sunset": None}
+
+    with patch.object(
+        weather.weather_api, "get_current_weather", new=AsyncMock(return_value=data)
+    ):
+        await weather.get_weather_now(message)
+
+    text = _answered_text(message)
+    assert "Восход солнца: нет данных" in text
+    assert "Закат солнца: нет данных" in text

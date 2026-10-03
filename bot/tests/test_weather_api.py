@@ -1,3 +1,4 @@
+import copy
 import datetime
 from unittest.mock import patch
 
@@ -200,3 +201,44 @@ async def test_empty_city_is_not_found():
     patcher, _ = _fake_http(400, {"cod": "400", "message": "Nothing to geocode"})
     with patcher, pytest.raises(CityNotFoundError):
         await WeatherAPI().get_current_weather("")
+
+
+async def test_current_weather_without_sunrise_and_sunset():
+    """В полярный день или ночь восхода и заката в ответе может не быть."""
+    payload = copy.deepcopy(CURRENT_PAYLOAD)
+    del payload["sys"]["sunrise"]
+    del payload["sys"]["sunset"]
+    patcher, _ = _fake_http(200, payload)
+    with patcher:
+        data = await WeatherAPI().get_current_weather("Мурманск")
+
+    assert data["sunrise"] is None
+    assert data["sunset"] is None
+    assert data["temperature"] == 12.5
+
+
+async def test_current_weather_without_wind_direction_and_clouds():
+    """Направление ветра и облачность нам не нужны: их отсутствие не сбой."""
+    payload = copy.deepcopy(CURRENT_PAYLOAD)
+    del payload["wind"]["deg"]
+    del payload["clouds"]
+    patcher, _ = _fake_http(200, payload)
+    with patcher:
+        data = await WeatherAPI().get_current_weather("Москва")
+
+    assert data["wind_direction"] is None
+    assert data["clouds"] is None
+    assert data["wind_speed"] == 3.5
+
+
+async def test_forecast_without_wind_direction_and_clouds():
+    """То же для прогноза: нужные для расчёта поля на месте, остальных нет."""
+    payload = _forecast_payload(days=1)
+    for item in payload["list"]:
+        del item["wind"]["deg"]
+        del item["clouds"]
+    patcher, _ = _fake_http(200, payload)
+    with patcher:
+        data = await WeatherAPI().get_forecast("Москва", days=1)
+
+    assert len(data["forecasts"]) == 1

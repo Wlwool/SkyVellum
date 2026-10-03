@@ -25,6 +25,13 @@ def _api_error_text(error: WeatherAPIError) -> str:
     return SERVICE_UNAVAILABLE
 
 
+def _local_time_or_no_data(timestamp: int | None, tz_offset: int) -> str:
+    """Местное время для вывода. Нет значения (полярный день/ночь) - нет данных"""
+    if timestamp is None:
+        return "нет данных"
+    return format_local_time(timestamp, tz_offset)
+
+
 async def get_weather_now(message: types.Message):
     """Получение текущей информации о погоде"""
     if message.from_user is None:
@@ -59,8 +66,8 @@ async def get_weather_now(message: types.Message):
 
     # Преобразование времени заката и рассвета в читаемый формат
     tz_offset = weather_data["timezone"]
-    sunrise_time = format_local_time(weather_data["sunrise"], tz_offset)
-    sunset_time = format_local_time(weather_data["sunset"], tz_offset)
+    sunrise_time = _local_time_or_no_data(weather_data["sunrise"], tz_offset)
+    sunset_time = _local_time_or_no_data(weather_data["sunset"], tz_offset)
     formatted_time = format_local_time(int(message.date.timestamp()), tz_offset)
 
     # ответное сообщение с текущей погодой пользователю
