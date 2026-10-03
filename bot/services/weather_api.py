@@ -1,5 +1,5 @@
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 import aiohttp
@@ -77,21 +77,6 @@ class WeatherAPI:
         data = await self._get_json(f"{self.base_url}/weather", params, "погоде")
         return self._parse_weather_data(data)
 
-    async def get_weather_by_coordinates(
-        self, lat: float, lon: float
-    ) -> dict[str, Any]:
-        """Получает информацию о текущей погоде по координатам.
-        Бросает WeatherAPIError (то же, что get_current_weather)."""
-        params = {
-            "lat": lat,
-            "lon": lon,
-            "appid": self.api_key,
-            "units": "metric",
-            "lang": "ru",
-        }
-        data = await self._get_json(f"{self.base_url}/weather", params, "погоде")
-        return self._parse_weather_data(data)
-
     async def get_forecast(self, city: str, days: int = 7) -> dict[str, Any]:
         """Получает прогноз погоды на несколько дней.
         Бросает CityNotFoundError или WeatherServiceError."""
@@ -107,7 +92,7 @@ class WeatherAPI:
         )
         return self._parse_forecast_data(data)
 
-    def _parse_weather_data(self, data):
+    def _parse_weather_data(self, data: dict[str, Any]) -> dict[str, Any]:
         """Обрабатывает данные о погоде и возвращает информацию о текущей погоде"""
         try:
             weather = {
@@ -134,17 +119,17 @@ class WeatherAPI:
             logger.error(f"Ошибка при обработке данных о погоде: {e!r}")
             raise WeatherServiceError("Неожиданный формат ответа о погоде") from e
 
-    def _parse_forecast_data(self, data):
+    def _parse_forecast_data(self, data: dict[str, Any]) -> dict[str, Any]:
         """Обрабатывает данные о прогнозе погоды и возвращает
         информацию о прогнозе на несколько дней"""
         try:
             city = data["city"]["name"]
             country = data["city"]["country"]
             tz_offset = data["city"].get("timezone", 0)
-            forecasts = []
+            forecasts: list[dict[str, Any]] = []
 
             # Группируем прогнозы по дням
-            day_forecasts = {}
+            day_forecasts: dict[date, list[dict[str, Any]]] = {}
             for item in data["list"]:
                 dt = datetime.fromtimestamp(item["dt"] + tz_offset, UTC)
                 day = dt.date()
@@ -176,7 +161,7 @@ class WeatherAPI:
                 avg_wind = sum(item["wind_speed"] for item in items) / len(items)
 
                 # определение наиболее распространённое значение описания погоды в день
-                descriptions = {}
+                descriptions: dict[str, int] = {}
                 for item in items:
                     desc = item["description"]
                     if desc in descriptions:
@@ -198,7 +183,6 @@ class WeatherAPI:
                         "details": items,
                     }
                 )
-
             return {"city": city, "country": country, "forecasts": forecasts}
 
         except (KeyError, IndexError, TypeError, ValueError) as e:

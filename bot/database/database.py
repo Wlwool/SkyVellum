@@ -27,7 +27,7 @@ class Base(DeclarativeBase):
 
 
 # Создает асинхронный движок и сессию для работы с БД
-engine = create_async_engine(config.DB_URL, echo=True)
+engine = create_async_engine(config.DB_URL, echo=False)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 
