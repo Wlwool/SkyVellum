@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from aiogram.exceptions import TelegramForbiddenError
 from aiogram.methods import SendMessage
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select
 
 from bot.database.database import async_session
@@ -241,3 +242,131 @@ async def test_daily_updates_timezone_offset(make_user):
         await scheduler.send_daily_weather(bot=bot)
 
     assert await _timezone_offset(111) == 25200
+
+
+async def _load_users(*user_ids: int) -> list[User]:
+    """Загружает пользователей по Telegram ID (объекты читаются и после сессии)."""
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.user_id.in_(user_ids)))
+        return list(result.scalars().all())
+
+
+async def test_weekly_sends_only_to_given_users(make_user):
+    """Если передан список получателей, остальные активные ничего не получают."""
+    await make_user(user_id=111)
+    await make_user(user_id=222)
+    bot = AsyncMock()
+    users = await _load_users(222)
+
+    with _patch_analysis(_analysis()):
+        await scheduler.send_weekly_analysis(bot=bot, users=users)
+
+    bot.send_message.assert_awaited_once()
+    assert bot.send_message.call_args.args[0] == 222
+
+
+async def test_daily_sends_only_to_given_users(make_user):
+    """То же для ежедневной рассылки."""
+    await make_user(user_id=111)
+    await make_user(user_id=222)
+    bot = AsyncMock()
+    users = await _load_users(222)
+
+    with (
+        patch.object(
+            scheduler.weather_api,
+            "get_current_weather",
+            new=AsyncMock(return_value=_weather()),
+        ),
+        patch.object(
+            WeatherAnalytics,
+            "save_weather_data_for_week_analysis",
+            new=AsyncMock(),
+        ),
+    ):
+        await scheduler.send_daily_weather(bot=bot, users=users)
+
+    bot.send_message.assert_awaited_once()
+    assert bot.send_message.call_args.args[0] == 222
+
+
+def _user(user_id: int, offset: int) -> User:
+    return User(user_id=user_id, city="Москва", timezone_offset=offset)
+
+
+def test_select_due_users_filters_by_local_time():
+    """05:00 UTC: у москвича (+3 ч) 08:00, у пользователя с нулевым смещением нет."""
+    now = datetime.datetime(2026, 9, 21, 5, 0, tzinfo=datetime.UTC)
+    moscow, utc = _user(1, 10800), _user(2, 0)
+
+    assert scheduler.select_due_users([moscow, utc], now, hour=8) == [moscow]
+
+
+def test_select_due_users_respects_weekday():
+    """Воскресная рассылка: в воскресенье в 12:00 по Москве да, в понедельник нет."""
+    sunday = datetime.datetime(2026, 9, 27, 9, 0, tzinfo=datetime.UTC)
+    monday = datetime.datetime(2026, 9, 28, 9, 0, tzinfo=datetime.UTC)
+    moscow = _user(1, 10800)
+
+    assert scheduler.select_due_users([moscow], sunday, 12, weekday=6) == [moscow]
+    assert scheduler.select_due_users([moscow], monday, 12, weekday=6) == []
+
+
+async def test_tick_sends_daily_to_users_at_local_eight(make_user):
+    """Тик в 05:00 UTC: утренняя рассылка идёт только москвичу."""
+    await make_user(user_id=111, timezone_offset=10800)
+    await make_user(user_id=222, timezone_offset=0)
+    bot = AsyncMock()
+    now = datetime.datetime(2026, 9, 21, 5, 0, tzinfo=datetime.UTC)
+
+    with (
+        patch.object(scheduler, "send_daily_weather", new=AsyncMock()) as daily,
+        patch.object(scheduler, "send_weekly_analysis", new=AsyncMock()) as weekly,
+    ):
+        await scheduler.send_due_broadcasts(bot, now_utc=now)
+
+    daily.assert_awaited_once()
+    assert [u.user_id for u in daily.await_args_list[0].args[1]] == [111]
+    weekly.assert_not_awaited()
+
+
+async def test_tick_sends_weekly_on_local_sunday_noon(make_user):
+    """Тик в воскресенье 09:00 UTC: у москвича 12:00, уходит только анализ недели."""
+    await make_user(user_id=111, timezone_offset=10800)
+    bot = AsyncMock()
+    now = datetime.datetime(2026, 9, 27, 9, 0, tzinfo=datetime.UTC)
+
+    with (
+        patch.object(scheduler, "send_daily_weather", new=AsyncMock()) as daily,
+        patch.object(scheduler, "send_weekly_analysis", new=AsyncMock()) as weekly,
+    ):
+        await scheduler.send_due_broadcasts(bot, now_utc=now)
+
+    weekly.assert_awaited_once()
+    assert [u.user_id for u in weekly.await_args_list[0].args[1]] == [111]
+    daily.assert_not_awaited()
+
+
+async def test_tick_skips_inactive_and_not_due_users(make_user):
+    """Неактивных и тех, у кого не их время, рассылки не получают вовсе."""
+    await make_user(user_id=111, is_active=False, timezone_offset=10800)
+    await make_user(user_id=222, timezone_offset=0)
+    bot = AsyncMock()
+    now = datetime.datetime(2026, 9, 21, 5, 0, tzinfo=datetime.UTC)
+
+    with (
+        patch.object(scheduler, "send_daily_weather", new=AsyncMock()) as daily,
+        patch.object(scheduler, "send_weekly_analysis", new=AsyncMock()) as weekly,
+    ):
+        await scheduler.send_due_broadcasts(bot, now_utc=now)
+
+    daily.assert_not_awaited()
+    weekly.assert_not_awaited()
+
+
+async def test_schedule_jobs_registers_single_tick():
+    """Вместо двух фиксированных заданий регистрируется одно - тик."""
+    sched = AsyncIOScheduler()
+    scheduler.schedule_jobs(sched, AsyncMock())
+
+    assert [job.id for job in sched.get_jobs()] == ["due_broadcasts"]

@@ -1,5 +1,7 @@
 import asyncio
 import logging
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from typing import Any
 
 from aiogram import Bot
@@ -7,16 +9,21 @@ from aiogram.exceptions import TelegramForbiddenError
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import update
-from sqlalchemy.future import select
 
 from bot.database.database import async_session
 from bot.database.models import User
 from bot.services.analytics import WeatherAnalytics
-from bot.services.users import update_timezone_offset
+from bot.services.users import get_active_users, update_timezone_offset
 from bot.services.weather_api import WeatherAPI
+from bot.utils.timeutils import is_local_time_due
 
 logger = logging.getLogger(__name__)
 weather_api = WeatherAPI()
+
+DAILY_HOUR = 8  # местное время утренней рассылки
+WEEKLY_HOUR = 12  # местное время воскресной рассылки
+SUNDAY = 6  # datetime.weekday(): понедельник = 0
+TICK_MINUTES = 15  # шаг планировщика = ширина окна в is_local_time_due
 
 
 async def _deactivate_user(user_pk: int) -> None:
@@ -28,14 +35,14 @@ async def _deactivate_user(user_pk: int) -> None:
         await session.commit()
 
 
-async def send_daily_weather(bot: Bot):
-    """Отправляет ежедневный прогноз погоды всем пользователям"""
+async def send_daily_weather(bot: Bot, users: Sequence[User] | None = None):
+    """Отправляет ежедневный прогноз погоды.
+    users - кому слать, если не задан, то всем активным пользователям
+    """
     logger.info("Запуск рассылки ежедневного прогноза погоды")
 
-    async with async_session() as session:
-        stmt = select(User).where(User.is_active.is_(True))
-        result = await session.execute(stmt)
-        users = result.scalars().all()
+    if users is None:
+        users = await get_active_users()
 
     for user in users:
         try:
@@ -90,14 +97,14 @@ async def send_daily_weather(bot: Bot):
             )
 
 
-async def send_weekly_analysis(bot: Bot):
-    """Отправляет еженедельный анализ погоды всем пользователям"""
+async def send_weekly_analysis(bot: Bot, users: Sequence[User] | None = None):
+    """Отправляет еженедельный анализ погоды.
+    users - кому слать, если не задан, то всем активным пользователям.
+    """
     logger.info("Запуск рассылки еженедельного анализа погоды")
 
-    async with async_session() as session:
-        stmt = select(User).where(User.is_active.is_(True))
-        result = await session.execute(stmt)
-        users = result.scalars().all()
+    if users is None:
+        users = await get_active_users()
 
     for user in users:
         try:
@@ -192,29 +199,54 @@ async def send_weekly_analysis(bot: Bot):
             )
 
 
+def select_due_users(
+    users: Sequence[User],
+    now_utc: datetime,
+    hour: int,
+    weekday: int | None = None,
+) -> list[User]:
+    """Кому сейчас пора слать: местное время hour:00 (и день недели weekday)."""
+    return [
+        user
+        for user in users
+        if is_local_time_due(now_utc, user.timezone_offset, hour, weekday, TICK_MINUTES)
+    ]
+
+
+async def send_due_broadcasts(bot: Bot, now_utc: datetime | None = None) -> None:
+    """Тик планировщика (раз в TICK_MINUTES минут).
+    Отправляет утренний прогноз тем, у кого сейчас 8:00 по местному времени,
+    и еженедельный анализ тем, у кого сейчас воскресенье 12:00.
+    now_utc нужен тестам; в работе берётся текущее время.
+    """
+    if now_utc is None:
+        now_utc = datetime.now(UTC)
+    users = await get_active_users()
+
+    daily = select_due_users(users, now_utc, DAILY_HOUR)
+    if daily:
+        await send_daily_weather(bot, daily)
+
+    weekly = select_due_users(users, now_utc, WEEKLY_HOUR, SUNDAY)
+    if weekly:
+        await send_weekly_analysis(bot, weekly)
+
+
 def schedule_jobs(scheduler: AsyncIOScheduler, bot: Bot):
-    """Настройка и запуск планировщика заданий.
-    Отправка ежедневного прогноза погоды в 8 утра и отправка
-    еженедельного анализа погоды в воскресенье в 12:00
+    """Настройка планировщика заданий.
+    Раз в TICK_MINUTES минут проверяется, у кого наступило местное время рассылки:
+    ежедневный прогноз в 8:00, еженедельный анализ в воскресенье в 12:00.
     """
     scheduler.add_job(
-        send_daily_weather,
-        trigger=CronTrigger(hour=8, minute=0),
+        send_due_broadcasts,
+        trigger=CronTrigger(minute=f"*/{TICK_MINUTES}"),
         kwargs={"bot": bot},
-        id="daily_weather",
+        id="due_broadcasts",
         replace_existing=True,
+        misfire_grace_time=300,
     )
-    logger.info("Настроена задача на отправку ежедневного прогноза погоды в 8:00")
-
-    scheduler.add_job(
-        send_weekly_analysis,
-        trigger=CronTrigger(day_of_week="sun", hour=12, minute=0),
-        kwargs={"bot": bot},
-        id="weekly_analysis",
-        replace_existing=True,
-    )
-
     logger.info(
-        "Настроена задача на отправку еженедельного анализа погоды "
-        "в 12:00 на воскресенье"
+        f"Настроена проверка рассылок каждые {TICK_MINUTES} минут "
+        f"(прогноз в {DAILY_HOUR}:00, анализ в воскресенье в {WEEKLY_HOUR}:00 "
+        f"по местному времени)"
     )
