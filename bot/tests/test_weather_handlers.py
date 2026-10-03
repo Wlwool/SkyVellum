@@ -2,13 +2,19 @@ import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from sqlalchemy import func, select
 
 from bot.database.database import async_session
 from bot.database.models import User, WeatherData
 from bot.handlers import weather
+from bot.services.weather_api import CityNotFoundError, WeatherServiceError
 
 TELEGRAM_ID = 123456
+API_ERRORS = [
+    (WeatherServiceError("сбой"), "недоступен"),
+    (CityNotFoundError("нет такого"), "Изменить город"),
+]
 
 
 def _message() -> MagicMock:
@@ -69,3 +75,52 @@ async def test_weather_now_does_not_save_weather_data(make_user):
     async with async_session() as session:
         result = await session.execute(select(func.count()).select_from(WeatherData))
         assert result.scalar_one() == 0
+
+
+def _answered_text(message: MagicMock) -> str:
+    message.answer.assert_awaited_once()
+    return str(message.answer.call_args.args[0])
+
+
+@pytest.mark.parametrize(("error", "expected"), API_ERRORS)
+async def test_weather_now_api_errors(make_user, error, expected):
+    """Сбой OpenWeather: человек получает понятный ответ, а не падение."""
+    await make_user(user_id=TELEGRAM_ID)
+    message = _message()
+
+    with patch.object(
+        weather.weather_api, "get_current_weather", new=AsyncMock(side_effect=error)
+    ):
+        await weather.get_weather_now(message)
+
+    assert expected in _answered_text(message)
+
+
+@pytest.mark.parametrize(("error", "expected"), API_ERRORS)
+async def test_forecast_api_errors(make_user, error, expected):
+    """То же для прогноза на 5 дней."""
+    await make_user(user_id=TELEGRAM_ID)
+    message = _message()
+
+    with patch.object(
+        weather.weather_api, "get_forecast", new=AsyncMock(side_effect=error)
+    ):
+        await weather.get_weather_forecast(message)
+
+    assert expected in _answered_text(message)
+
+
+async def test_weather_now_without_sunrise_and_sunset(make_user):
+    """Нет восхода и заката (полярный день или ночь)"""
+    await make_user(user_id=TELEGRAM_ID)
+    message = _message()
+    data = {**_weather(10800), "sunrise": None, "sunset": None}
+
+    with patch.object(
+        weather.weather_api, "get_current_weather", new=AsyncMock(return_value=data)
+    ):
+        await weather.get_weather_now(message)
+
+    text = _answered_text(message)
+    assert "Восход солнца: нет данных" in text
+    assert "Закат солнца: нет данных" in text

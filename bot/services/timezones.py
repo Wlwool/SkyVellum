@@ -3,7 +3,7 @@ import logging
 
 from bot.database.database import engine
 from bot.services.users import get_active_users, update_timezone_offset
-from bot.services.weather_api import WeatherAPI
+from bot.services.weather_api import WeatherAPI, WeatherAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -15,11 +15,12 @@ async def refresh_timezone_offsets(api: WeatherAPI) -> tuple[int, int]:
     """
     updated = failed = 0
     for user in await get_active_users():
-        weather = await api.get_current_weather(user.city)
-        if not weather:
+        try:
+            weather = await api.get_current_weather(user.city)
+        except WeatherAPIError as e:
             logger.warning(
                 f"Нет данных о погоде для пользователя {user.user_id}, "
-                f"город: {user.city}"
+                f"город: {user.city}: {e}"
             )
             failed += 1
             continue
@@ -29,9 +30,11 @@ async def refresh_timezone_offsets(api: WeatherAPI) -> tuple[int, int]:
 
 
 async def _main() -> None:
+    api = WeatherAPI()
     try:
-        updated, failed = await refresh_timezone_offsets(WeatherAPI())
+        updated, failed = await refresh_timezone_offsets(api)
     finally:
+        await api.close()
         await engine.dispose()
     print(f"Смещение получено: {updated}, не удалось: {failed}")
 

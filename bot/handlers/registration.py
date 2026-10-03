@@ -8,8 +8,9 @@ from sqlalchemy.future import select
 
 from bot.database.database import async_session
 from bot.database.models import User
+from bot.handlers.texts import SERVICE_UNAVAILABLE
 from bot.keyboards.reply import get_start_keyboard
-from bot.services.weather_api import WeatherAPI
+from bot.services.weather_api import CityNotFoundError, WeatherServiceError, weather_api
 
 logger = logging.getLogger(__name__)
 
@@ -41,15 +42,17 @@ async def process_city(message: types.Message, state: FSMContext) -> None:
     city = message.text.strip()
 
     # Проверка на наличие города через API погоды
-    weather_api = WeatherAPI()
-    weather_data: dict[str, Any] | None = await weather_api.get_current_weather(city)
-
-    if not weather_data:
+    try:
+        weather_data: dict[str, Any] = await weather_api.get_current_weather(city)
+    except CityNotFoundError:
         await message.answer(
             "Извините, но не удалось найти введенный вами город. "
             "Пожалуйста, проверьте правильность написания и попробуйте еще раз. "
             "Примеры: Москва, Тамбов, Санкт-Петербург и т.д."
         )
+        return
+    except WeatherServiceError:
+        await message.answer(SERVICE_UNAVAILABLE)
         return
 
     # Получение информации о пользователе

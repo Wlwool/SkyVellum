@@ -6,6 +6,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from bot.config.config import Config
 from bot.handlers import register_all_handlers
+from bot.services.weather_api import weather_api
 from bot.utils.logger import setup_logger
 from bot.utils.scheduler import schedule_jobs
 
@@ -34,4 +35,9 @@ async def main():
 
     # Запуск бота
     logger.info("Бот запущен!")
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    finally:
+        # сначала планировщик: идущая задача не должна открыть новую сессию
+        scheduler.shutdown(wait=False)
+        await weather_api.close()

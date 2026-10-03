@@ -7,14 +7,28 @@ from sqlalchemy.future import select
 
 from bot.database.database import async_session
 from bot.database.models import User
+from bot.handlers.texts import CITY_NOT_FOUND_SAVED, SERVICE_UNAVAILABLE
 from bot.keyboards.reply import get_start_keyboard, get_weather_keyboard
 from bot.services.analytics import WeatherAnalytics
 from bot.services.users import update_timezone_offset
-from bot.services.weather_api import WeatherAPI
+from bot.services.weather_api import CityNotFoundError, WeatherAPIError, weather_api
 from bot.utils.timeutils import format_local_time
 
 logger = logging.getLogger(__name__)
-weather_api = WeatherAPI()
+
+
+def _api_error_text(error: WeatherAPIError) -> str:
+    """Что ответить человеку, если OpenWeather не дал данных."""
+    if isinstance(error, CityNotFoundError):
+        return CITY_NOT_FOUND_SAVED
+    return SERVICE_UNAVAILABLE
+
+
+def _local_time_or_no_data(timestamp: int | None, tz_offset: int) -> str:
+    """Местное время для вывода. Нет значения (полярный день/ночь) - нет данных"""
+    if timestamp is None:
+        return "нет данных"
+    return format_local_time(timestamp, tz_offset)
 
 
 async def get_weather_now(message: types.Message):
@@ -38,16 +52,12 @@ async def get_weather_now(message: types.Message):
         return
 
     # получение данных о погоде для города, который был выбран пользователем
-    weather_data: dict[str, Any] | None = await weather_api.get_current_weather(
-        user.city
-    )
-
-    if not weather_data:
-        await message.answer(
-            "Извините, ошибка получения данных о погоде. Попробуйте позже",
-            reply_markup=get_weather_keyboard(),
-        )
+    try:
+        weather_data: dict[str, Any] = await weather_api.get_current_weather(user.city)
+    except WeatherAPIError as e:
+        await message.answer(_api_error_text(e), reply_markup=get_weather_keyboard())
         return
+
     await update_timezone_offset(
         user.id,
         weather_data["timezone"],
@@ -55,8 +65,8 @@ async def get_weather_now(message: types.Message):
 
     # Преобразование времени заката и рассвета в читаемый формат
     tz_offset = weather_data["timezone"]
-    sunrise_time = format_local_time(weather_data["sunrise"], tz_offset)
-    sunset_time = format_local_time(weather_data["sunset"], tz_offset)
+    sunrise_time = _local_time_or_no_data(weather_data["sunrise"], tz_offset)
+    sunset_time = _local_time_or_no_data(weather_data["sunset"], tz_offset)
     formatted_time = format_local_time(int(message.date.timestamp()), tz_offset)
 
     # ответное сообщение с текущей погодой пользователю
@@ -98,13 +108,6 @@ async def get_weather_forecast(message: types.Message) -> None:
         forecast_data = await weather_api.get_forecast(user.city, days=5)
         logger.debug(f"Прогноз получен для города {user.city}")
 
-        if not forecast_data:
-            await message.answer(
-                "Извините, ошибка получения данных о погоде. Попробуйте позже",
-                reply_markup=get_weather_keyboard(),
-            )
-            return
-
         # ответное сообщение с прогнозом погоды пользователю
         forecast_message = (
             f"Прогноз погоды на 5 дней для города "
@@ -123,6 +126,8 @@ async def get_weather_forecast(message: types.Message) -> None:
                 f"🔍 {forecast['description'].capitalize()}\n\n"
             )
         await message.answer(forecast_message, reply_markup=get_weather_keyboard())
+    except WeatherAPIError as e:
+        await message.answer(_api_error_text(e), reply_markup=get_weather_keyboard())
     except Exception as e:
         logger.error(f"Ошибка: {e}")
         await message.answer("Произошла внутренняя ошибка при получении прогноза.")

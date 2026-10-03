@@ -10,6 +10,7 @@ from sqlalchemy import select
 from bot.database.database import async_session
 from bot.database.models import User
 from bot.services.analytics import WeatherAnalytics
+from bot.services.weather_api import CityNotFoundError
 from bot.utils import scheduler
 
 
@@ -370,3 +371,33 @@ async def test_schedule_jobs_registers_single_tick():
     scheduler.schedule_jobs(sched, AsyncMock())
 
     assert [job.id for job in sched.get_jobs()] == ["due_broadcasts"]
+
+
+async def test_daily_api_error_skips_only_that_user(make_user):
+    """Сбой OpenWeather у одного пользователя не рвёт рассылку и не отключает его."""
+    await make_user(user_id=111, city="Несуществующий")
+    await make_user(user_id=222)
+    bot = AsyncMock()
+
+    async def _weather_for(city):
+        if city == "Несуществующий":
+            raise CityNotFoundError(city)
+        return _weather()
+
+    with (
+        patch.object(
+            scheduler.weather_api,
+            "get_current_weather",
+            new=AsyncMock(side_effect=_weather_for),
+        ),
+        patch.object(
+            WeatherAnalytics,
+            "save_weather_data_for_week_analysis",
+            new=AsyncMock(),
+        ),
+    ):
+        await scheduler.send_daily_weather(bot=bot)
+
+    bot.send_message.assert_awaited_once()
+    assert bot.send_message.call_args.args[0] == 222
+    assert await _is_active(111) is True

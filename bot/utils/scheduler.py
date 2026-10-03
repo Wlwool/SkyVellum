@@ -14,11 +14,11 @@ from bot.database.database import async_session
 from bot.database.models import User
 from bot.services.analytics import WeatherAnalytics
 from bot.services.users import get_active_users, update_timezone_offset
-from bot.services.weather_api import WeatherAPI
+from bot.services.weather_api import WeatherAPIError, weather_api
 from bot.utils.timeutils import is_local_time_due
 
 logger = logging.getLogger(__name__)
-weather_api = WeatherAPI()
+
 
 DAILY_HOUR = 8  # местное время утренней рассылки
 WEEKLY_HOUR = 12  # местное время воскресной рассылки
@@ -47,16 +47,9 @@ async def send_daily_weather(bot: Bot, users: Sequence[User] | None = None):
     for user in users:
         try:
             # получение прогноза погоды для города пользователя
-            weather_data: dict[str, Any] | None = await weather_api.get_current_weather(
+            weather_data: dict[str, Any] = await weather_api.get_current_weather(
                 user.city
             )
-
-            if not weather_data:
-                logger.warning(
-                    f"Не удалось получить погоду для "
-                    f"пользователя {user.user_id}, город: {user.city}"
-                )
-                continue
             await update_timezone_offset(
                 user.id,
                 weather_data["timezone"],
@@ -86,6 +79,11 @@ async def send_daily_weather(bot: Bot, users: Sequence[User] | None = None):
             # небольшая задержка, чтобы избежать слишком частых запросов к API
             await asyncio.sleep(0.5)
 
+        except WeatherAPIError as e:
+            logger.warning(
+                f"Не удалось получить погоду для пользователя {user.user_id}, "
+                f"город: {user.city}: {e}"
+            )
         except TelegramForbiddenError:
             logger.warning(
                 f"Пользователь {user.user_id} заблокировал бота, деактивируем"
