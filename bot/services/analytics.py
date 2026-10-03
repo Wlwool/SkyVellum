@@ -95,20 +95,22 @@ class WeatherAnalytics:
             # Анализ данных по дням недели (усредняем все записи за день)
             daily_analysis = []
             for day, data_list in daily_data.items():
-                avg_temp = sum(d.temperature for d in data_list) / len(data_list)
-                min_temp = min(d.temperature for d in data_list)
-                max_temp = max(d.temperature for d in data_list)
-                avg_humidity = sum(d.humidity for d in data_list) / len(data_list)
-                avg_wind = sum(d.wind_speed for d in data_list) / len(data_list)
+                # пустые значения (NULL в БД) пропускаем
+                temps = [d.temperature for d in data_list if d.temperature is not None]
+                humidities = [d.humidity for d in data_list if d.humidity is not None]
+                winds = [d.wind_speed for d in data_list if d.wind_speed is not None]
+
+                if not temps or not humidities or not winds:
+                    continue
 
                 daily_analysis.append(
                     {
                         "date": day,
-                        "avg_temp": round(avg_temp, 1),
-                        "min_temp": round(min_temp, 1),
-                        "max_temp": round(max_temp, 1),
-                        "avg_humidity": round(avg_humidity, 1),
-                        "avg_wind": round(avg_wind, 1),
+                        "avg_temp": round(sum(temps) / len(temps), 1),
+                        "min_temp": round(min(temps), 1),
+                        "max_temp": round(max(temps), 1),
+                        "avg_humidity": round(sum(humidities) / len(humidities), 1),
+                        "avg_wind": round(sum(winds) / len(winds), 1),
                     }
                 )
 
