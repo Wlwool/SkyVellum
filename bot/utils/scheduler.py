@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from collections.abc import Sequence
 from typing import Any
 
 from aiogram import Bot
@@ -28,14 +29,21 @@ async def _deactivate_user(user_pk: int) -> None:
         await session.commit()
 
 
-async def send_daily_weather(bot: Bot):
-    """Отправляет ежедневный прогноз погоды всем пользователям"""
+async def _get_active_users() -> list[User]:
+    """Все активные пользователи (is_active = True)."""
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.is_active.is_(True)))
+        return list(result.scalars().all())
+
+
+async def send_daily_weather(bot: Bot, users: Sequence[User] | None = None):
+    """Отправляет ежедневный прогноз погоды.
+    users - кому слать, если не задан, то всем активным пользователям
+    """
     logger.info("Запуск рассылки ежедневного прогноза погоды")
 
-    async with async_session() as session:
-        stmt = select(User).where(User.is_active.is_(True))
-        result = await session.execute(stmt)
-        users = result.scalars().all()
+    if users is None:
+        users = await _get_active_users()
 
     for user in users:
         try:
@@ -90,14 +98,14 @@ async def send_daily_weather(bot: Bot):
             )
 
 
-async def send_weekly_analysis(bot: Bot):
-    """Отправляет еженедельный анализ погоды всем пользователям"""
+async def send_weekly_analysis(bot: Bot, users: Sequence[User] | None = None):
+    """Отправляет еженедельный анализ погоды.
+    users - кому слать, если не задан, то всем активным пользователям.
+    """
     logger.info("Запуск рассылки еженедельного анализа погоды")
 
-    async with async_session() as session:
-        stmt = select(User).where(User.is_active.is_(True))
-        result = await session.execute(stmt)
-        users = result.scalars().all()
+    if users is None:
+        users = await _get_active_users()
 
     for user in users:
         try:

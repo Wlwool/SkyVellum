@@ -241,3 +241,49 @@ async def test_daily_updates_timezone_offset(make_user):
         await scheduler.send_daily_weather(bot=bot)
 
     assert await _timezone_offset(111) == 25200
+
+
+async def _load_users(*user_ids: int) -> list[User]:
+    """Загружает пользователей по Telegram ID (объекты читаются и после сессии)."""
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.user_id.in_(user_ids)))
+        return list(result.scalars().all())
+
+
+async def test_weekly_sends_only_to_given_users(make_user):
+    """Если передан список получателей, остальные активные ничего не получают."""
+    await make_user(user_id=111)
+    await make_user(user_id=222)
+    bot = AsyncMock()
+    users = await _load_users(222)
+
+    with _patch_analysis(_analysis()):
+        await scheduler.send_weekly_analysis(bot=bot, users=users)
+
+    bot.send_message.assert_awaited_once()
+    assert bot.send_message.call_args.args[0] == 222
+
+
+async def test_daily_sends_only_to_given_users(make_user):
+    """То же для ежедневной рассылки."""
+    await make_user(user_id=111)
+    await make_user(user_id=222)
+    bot = AsyncMock()
+    users = await _load_users(222)
+
+    with (
+        patch.object(
+            scheduler.weather_api,
+            "get_current_weather",
+            new=AsyncMock(return_value=_weather()),
+        ),
+        patch.object(
+            WeatherAnalytics,
+            "save_weather_data_for_week_analysis",
+            new=AsyncMock(),
+        ),
+    ):
+        await scheduler.send_daily_weather(bot=bot, users=users)
+
+    bot.send_message.assert_awaited_once()
+    assert bot.send_message.call_args.args[0] == 222
