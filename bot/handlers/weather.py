@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from sqlalchemy.future import select
 
 from bot.database.database import async_session
-from bot.database.models import User, WeatherData
+from bot.database.models import User
 from bot.keyboards.reply import get_start_keyboard, get_weather_keyboard
 from bot.services.analytics import WeatherAnalytics
 from bot.services.users import update_timezone_offset
@@ -52,20 +52,6 @@ async def get_weather_now(message: types.Message):
         user.id,  # type: ignore[arg-type]
         weather_data["timezone"],
     )
-
-    # сохранение данных о погоде в базу данных
-    async with async_session() as session:
-        new_weather_data = WeatherData(
-            user_id=user.id,
-            temperature=weather_data["temperature"],
-            feels_like=weather_data["feels_like"],
-            pressure=weather_data["pressure"],
-            humidity=weather_data["humidity"],
-            wind_speed=weather_data["wind_speed"],
-            description=weather_data["description"],
-        )
-        session.add(new_weather_data)
-        await session.commit()
 
     # Преобразование времени заката и рассвета в читаемый формат
     tz_offset = weather_data["timezone"]

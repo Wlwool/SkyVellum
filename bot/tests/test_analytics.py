@@ -1,6 +1,7 @@
 import datetime
 import os
 import time
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -114,3 +115,46 @@ async def test_weekly_analysis_groups_by_city_local_date(make_user):
     assert analysis is not None
     assert len(analysis["daily_analysis"]) == 1
     assert analysis["period"]["start"] == base.date()
+
+
+async def test_weekly_analysis_with_forecast(make_user):
+    """Воскресная рассылка: анализ прошлой недели из БД + прогноз из API."""
+    user_id = await make_user(user_id=888, city="Москва")
+    weather = {
+        "temperature": 10.0,
+        "feels_like": 9.0,
+        "pressure": 1010,
+        "humidity": 70,
+        "wind_speed": 3.0,
+        "description": "Облачно",
+    }
+    for _ in range(2):
+        await WeatherAnalytics.save_weather_data_for_week_analysis(user_id, weather)
+
+    forecast = {
+        "city": "Москва",
+        "country": "RU",
+        "forecasts": [
+            {
+                "date": datetime.date(2026, 10, 3),
+                "avg_temp": 5.0,
+                "min_temp": 2.0,
+                "max_temp": 8.0,
+                "avg_humidity": 80.0,
+                "avg_wind": 4.0,
+                "description": "дождь",
+            }
+        ],
+    }
+    weather_api = MagicMock()
+    weather_api.get_forecast = AsyncMock(return_value=forecast)
+
+    result = await WeatherAnalytics.get_weekly_analysis_with_forecast(
+        user_id, weather_api
+    )
+
+    assert result is not None
+    assert result["city"] == "Москва"
+    assert result["past_week"] is not None
+    assert result["next_week_forecast"]["days_count"] == 1
+    weather_api.get_forecast.assert_awaited_once_with("Москва", days=5)
