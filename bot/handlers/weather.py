@@ -31,6 +31,45 @@ def _local_time_or_no_data(timestamp: int | None, tz_offset: int) -> str:
     return format_local_time(timestamp, tz_offset)
 
 
+def _format_current_weather(weather_data: dict[str, Any], timestamp: int) -> str:
+    """Текст Погоды сейчас. timestamp - момент в UTC для строки - обновлено."""
+    tz_offset = weather_data["timezone"]
+    sunrise_time = _local_time_or_no_data(weather_data["sunrise"], tz_offset)
+    sunset_time = _local_time_or_no_data(weather_data["sunset"], tz_offset)
+    formatted_time = format_local_time(timestamp, tz_offset)
+    return (
+        f"Погода в городе {weather_data['city']} ({weather_data['country']}):\n\n"
+        f"🌡️ Температура: {weather_data['temperature']:.1f}°C "
+        f"(ощущается как {weather_data['feels_like']:.1f}°C)\n"
+        f"💧 Влажность: {weather_data['humidity']}%\n"
+        f"🌬️ Ветер: {weather_data['wind_speed']} м/с\n"
+        f"🔍 {weather_data['description'].capitalize()}\n\n"
+        f"🌅 Восход солнца: {sunrise_time}\n"
+        f"🌇 Закат солнца: {sunset_time}\n\n"
+        f"🕒 Данные обновлены: {formatted_time}\n*** Хорошего дня! ***"
+    )
+
+
+def _format_forecast(
+    forecast_data: dict[str, Any], forecasts: list[dict[str, Any]], title: str
+) -> str:
+    """Текст прогноза: заголовок и по блоку на каждый день из forecasts."""
+    text = (
+        f"{title} для города {forecast_data['city']} ({forecast_data['country']}):\n\n"
+    )
+    for forecast in forecasts:
+        date_str = forecast["date"].strftime("%d.%m")
+        text += (
+            f"📅 {date_str}:\n"
+            f"🌡️ Температура: {forecast['avg_temp']:.1f}°C "
+            f"(от {forecast['min_temp']:.1f}°C до {forecast['max_temp']:.1f}°C)\n"
+            f"💧 Влажность: {forecast['avg_humidity']:.0f}%\n"
+            f"🌬️ Ветер: {forecast['avg_wind']:.1f} м/с\n"
+            f"🔍 {forecast['description'].capitalize()}\n\n"
+        )
+    return text
+
+
 async def get_weather_now(message: types.Message):
     """Получение текущей информации о погоде"""
     if message.from_user is None:
@@ -58,28 +97,11 @@ async def get_weather_now(message: types.Message):
         await message.answer(_api_error_text(e), reply_markup=get_weather_keyboard())
         return
 
-    await update_timezone_offset(
-        user.id,
-        weather_data["timezone"],
-    )
-
-    # Преобразование времени заката и рассвета в читаемый формат
-    tz_offset = weather_data["timezone"]
-    sunrise_time = _local_time_or_no_data(weather_data["sunrise"], tz_offset)
-    sunset_time = _local_time_or_no_data(weather_data["sunset"], tz_offset)
-    formatted_time = format_local_time(int(message.date.timestamp()), tz_offset)
+    await update_timezone_offset(user.id, weather_data["timezone"])
 
     # ответное сообщение с текущей погодой пользователю
-    weather_message = (
-        f"Погода в городе {weather_data['city']} ({weather_data['country']}):\n\n"
-        f"🌡️ Температура: {weather_data['temperature']:.1f}°C "
-        f"(ощущается как {weather_data['feels_like']:.1f}°C)\n"
-        f"💧 Влажность: {weather_data['humidity']}%\n"
-        f"🌬️ Ветер: {weather_data['wind_speed']} м/с\n"
-        f"🔍 {weather_data['description'].capitalize()}\n\n"
-        f"🌅 Восход солнца: {sunrise_time}\n"
-        f"🌇 Закат солнца: {sunset_time}\n\n"
-        f"🕒 Данные обновлены: {formatted_time}\n*** Хорошего дня! ***"
+    weather_message = _format_current_weather(
+        weather_data, int(message.date.timestamp())
     )
     await message.answer(weather_message, reply_markup=get_weather_keyboard())
 
@@ -109,22 +131,9 @@ async def get_weather_forecast(message: types.Message) -> None:
         logger.debug(f"Прогноз получен для города {user.city}")
 
         # ответное сообщение с прогнозом погоды пользователю
-        forecast_message = (
-            f"Прогноз погоды на 5 дней для города "
-            f"{forecast_data['city']} "
-            f"({forecast_data['country']}):\n\n"
+        forecast_message = _format_forecast(
+            forecast_data, forecast_data["forecasts"][:5], "Прогноз погоды на 5 дней"
         )
-
-        for forecast in forecast_data["forecasts"][:5]:  # Берем только первые 5 дней
-            date_str = forecast["date"].strftime("%d.%m")
-            forecast_message += (
-                f"📅 {date_str}:\n"
-                f"🌡️ Температура: {forecast['avg_temp']:.1f}°C "
-                f"(от {forecast['min_temp']:.1f}°C до {forecast['max_temp']:.1f}°C)\n"
-                f"💧 Влажность: {forecast['avg_humidity']:.0f}%\n"
-                f"🌬️ Ветер: {forecast['avg_wind']:.1f} м/с\n"
-                f"🔍 {forecast['description'].capitalize()}\n\n"
-            )
         await message.answer(forecast_message, reply_markup=get_weather_keyboard())
     except WeatherAPIError as e:
         await message.answer(_api_error_text(e), reply_markup=get_weather_keyboard())
