@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Integer
+from sqlalchemy import BigInteger, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -28,7 +28,7 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, unique=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, unique=True)
     username: Mapped[str | None]
     first_name: Mapped[str | None]
     last_name: Mapped[str | None]
