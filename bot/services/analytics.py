@@ -15,8 +15,12 @@ logger = logging.getLogger(__name__)
 class WeatherAnalytics:
     @staticmethod
     async def get_weekly_analysis(user_id):
-        """Получение еженедельного анализа погоды для пользователя из база данных.
-        Используется для ручного запроса пользователя по команде
+        """Еженедельный анализ погоды пользователя по данным из БД.
+        Вызывается по кнопке 'Еженедельный анализ' и из воскресной рассылки
+        (get_weekly_analysis_with_forecast).
+        :param user_id: внутренний ID из таблицы User
+        :return: словарь с анализом или None, если пользователя нет, данных
+            недостаточно или произошла ошибка
         """
         try:
             async with async_session() as session:
