@@ -2,10 +2,10 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
 def get_forecast_keyboard() -> InlineKeyboardMarkup:
-    """Возвращает инлайн-клавиатуру для получения прогноза погоды"""
+    """Возвращает инлайн-клавиатуру для выбора периода прогноза погоды"""
     keyboard = [
         [
-            InlineKeyboardButton(text="Сегодня", callback_data="forecast:today"),
+            InlineKeyboardButton(text="Сейчас", callback_data="forecast:now"),
             InlineKeyboardButton(text="Завтра", callback_data="forecast:tomorrow"),
         ],
         [
@@ -13,15 +13,5 @@ def get_forecast_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="5 дней", callback_data="forecast:5days"),
         ],
     ]
-
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-
-def get_cities_keyboard(cities: list) -> InlineKeyboardMarkup:
-    """Возвращает инлайн-клавиатуру для выбора города"""
-    keyboard = []
-
-    for city in cities:
-        keyboard.append([InlineKeyboardButton(text=city, callback_data=f"city:{city}")])
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
