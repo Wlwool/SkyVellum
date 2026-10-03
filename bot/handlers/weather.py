@@ -1,4 +1,5 @@
 import logging
+from datetime import date, timedelta
 from typing import Any
 
 from aiogram import Dispatcher, F, types
@@ -68,6 +69,21 @@ def _format_forecast(
             f"🔍 {forecast['description'].capitalize()}\n\n"
         )
     return text
+
+
+def select_forecast_days(
+    forecasts: list[dict[str, Any]], period: str, today: date
+) -> list[dict[str, Any]]:
+    """Дни прогноза для выбранного периода.
+    today - сегодняшняя дата по времени города. Периоды: tomorrow, 3days, 5days."""
+    if period == "tomorrow":
+        tomorrow = today + timedelta(days=1)
+        return [f for f in forecasts if f["date"] == tomorrow]
+    if period == "3days":
+        return forecasts[:3]
+    if period == "5days":
+        return forecasts[:5]
+    raise ValueError(f"Неизвестный период прогноза: {period}")
 
 
 async def get_weather_now(message: types.Message):
