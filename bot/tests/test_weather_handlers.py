@@ -124,3 +124,68 @@ async def test_weather_now_without_sunrise_and_sunset(make_user):
     text = _answered_text(message)
     assert "Восход солнца: нет данных" in text
     assert "Закат солнца: нет данных" in text
+
+
+def _forecast_data() -> dict:
+    """Ответ get_forecast: два дня с теми же ключами, что у настоящего API."""
+    return {
+        "city": "Новосибирск",
+        "country": "RU",
+        "forecasts": [
+            {
+                "date": datetime.date(2026, 10, 3),
+                "avg_temp": 5.0,
+                "min_temp": 1.0,
+                "max_temp": 9.0,
+                "avg_humidity": 70.0,
+                "avg_wind": 3.0,
+                "description": "ясно",
+            },
+            {
+                "date": datetime.date(2026, 10, 4),
+                "avg_temp": 6.0,
+                "min_temp": 2.0,
+                "max_temp": 10.0,
+                "avg_humidity": 65.0,
+                "avg_wind": 4.0,
+                "description": "облачно",
+            },
+        ],
+    }
+
+
+async def test_weather_now_success_text(make_user):
+    """Страховка: полный текст «Погоды сейчас» до и после выноса форматирования."""
+    await make_user(user_id=TELEGRAM_ID)
+    message = _message()
+
+    with patch.object(
+        weather.weather_api,
+        "get_current_weather",
+        new=AsyncMock(return_value=_weather(10800)),
+    ):
+        await weather.get_weather_now(message)
+
+    text = _answered_text(message)
+    assert "Погода в городе Новосибирск (RU):" in text
+    assert "Температура: 10.0°C (ощущается как 8.0°C)" in text
+    assert "Данные обновлены: 13:00:00" in text
+
+
+async def test_forecast_success_text(make_user):
+    """Страховка: текст прогноза на 5 дней до и после выноса форматирования."""
+    await make_user(user_id=TELEGRAM_ID)
+    message = _message()
+
+    with patch.object(
+        weather.weather_api,
+        "get_forecast",
+        new=AsyncMock(return_value=_forecast_data()),
+    ):
+        await weather.get_weather_forecast(message)
+
+    text = _answered_text(message)
+    assert "Прогноз погоды на 5 дней для города Новосибирск (RU):" in text
+    assert "📅 03.10:" in text
+    assert "Температура: 5.0°C (от 1.0°C до 9.0°C)" in text
+    assert "📅 04.10:" in text
