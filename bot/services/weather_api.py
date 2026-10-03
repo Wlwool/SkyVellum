@@ -30,7 +30,7 @@ class WeatherServiceError(WeatherAPIError):
 
 
 class WeatherAPI:
-    def __init__(self):
+    def __init__(self) -> None:
         self.api_key = config.WEATHER_API_KEY
         self.base_url = "https://api.openweathermap.org/data/2.5"
         self._session: aiohttp.ClientSession | None = None
