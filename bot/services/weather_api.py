@@ -17,32 +17,33 @@ class WeatherAPI:
         self.api_key = config.WEATHER_API_KEY
         self.base_url = "https://api.openweathermap.org/data/2.5"
 
-    async def get_current_weather(self, city: str) -> dict[str, Any] | None:
-        """Получает информацию о текущей погоде по названию города"""
-        url = f"{self.base_url}/weather"
-        params = {"q": city, "appid": self.api_key, "units": "metric", "lang": "ru"}
-
+    async def _get_json(
+        self, url: str, params: dict[str, Any], what: str
+    ) -> dict[str, Any] | None:
+        """GET-запрос к OpenWeather. Возвращает JSON ответа или None при сбое.
+        what - что запрашивали, для текста в логах."""
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.get(url, params=params) as response:
                     if response.status == 200:
-                        data = await response.json()
-                        return self._parse_weather_data(data)
-                    else:
-                        error_data = await response.json()
-                        logger.error(
-                            f"Ошибка при получении данных о погоде: {error_data}"
-                        )
-                        return None
+                        return await response.json()
+                    error_data = await response.json()
+                    logger.error(f"Ошибка при получении данных о {what}: {error_data}")
+                    return None
             except Exception as e:
-                logger.error(f"Ошибка при получении данных о погоде: {e}")
+                logger.error(f"Ошибка при получении данных о {what}: {e}")
                 return None
+
+    async def get_current_weather(self, city: str) -> dict[str, Any] | None:
+        """Получает информацию о текущей погоде по названию города"""
+        params = {"q": city, "appid": self.api_key, "units": "metric", "lang": "ru"}
+        data = await self._get_json(f"{self.base_url}/weather", params, "погоде")
+        return self._parse_weather_data(data) if data else None
 
     async def get_weather_by_coordinates(
         self, lat: float, lon: float
     ) -> dict[str, Any] | None:
         """Получает информацию о текущей погоде по координатам"""
-        url = f"{self.base_url}/weather"
         params = {
             "lat": lat,
             "lon": lon,
@@ -50,26 +51,11 @@ class WeatherAPI:
             "units": "metric",
             "lang": "ru",
         }
-
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.get(url, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        return self._parse_weather_data(data)
-                    else:
-                        error_data = await response.json()
-                        logger.error(
-                            f"Ошибка при получении данных о погоде: {error_data}"
-                        )
-                        return None
-            except Exception as e:
-                logger.error(f"Ошибка при получении данных о погоде: {e}")
-                return None
+        data = await self._get_json(f"{self.base_url}/weather", params, "погоде")
+        return self._parse_weather_data(data) if data else None
 
     async def get_forecast(self, city, days=7):
         """Получает прогноз погоды на несколько дней"""
-        url = f"{self.base_url}/forecast"
         params = {
             "q": city,
             "appid": self.api_key,
@@ -77,23 +63,10 @@ class WeatherAPI:
             "lang": "ru",
             "cnt": days * 8,  # Количество дней * 8 (каждые 3 часа)
         }
-
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.get(url, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        return self._parse_forecast_data(data)
-                    else:
-                        error_data = await response.json()
-                        logger.error(
-                            f"Ошибка при получении данных о "
-                            f"прогнозе погоды: {error_data}"
-                        )
-                        return None
-            except Exception as e:
-                logger.error(f"Ошибка при получении данных о прогнозе погоды: {e}")
-                return None
+        data = await self._get_json(
+            f"{self.base_url}/forecast", params, "прогнозе погоды"
+        )
+        return self._parse_forecast_data(data) if data else None
 
     def _parse_weather_data(self, data):
         """Обрабатывает данные о погоде и возвращает информацию о текущей погоде"""
