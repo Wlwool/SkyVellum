@@ -1,6 +1,7 @@
 import datetime
 import os
 import time
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -8,6 +9,32 @@ import pytest
 from bot.database.database import async_session
 from bot.database.models import WeatherData
 from bot.services.analytics import WeatherAnalytics
+
+
+def test_weekly_data_skips_missing_values():
+    """Запись с пустой температурой не должна ломать весь анализ."""
+
+    def rec(date, temperature, humidity, wind_speed):
+        return SimpleNamespace(
+            date=date,
+            temperature=temperature,
+            humidity=humidity,
+            wind_speed=wind_speed,
+        )
+
+    records = [
+        rec(datetime.datetime(2026, 10, 1, 8), 10.0, 50, 3.0),
+        rec(datetime.datetime(2026, 10, 1, 9), None, 60, 5.0),
+        rec(datetime.datetime(2026, 10, 2, 8), 14.0, 70, 4.0),
+    ]
+
+    result = WeatherAnalytics._analyze_weekly_data(records, "Москва", 0)
+
+    assert result is not None
+    assert len(result["daily_analysis"]) == 2
+    first_day = result["daily_analysis"][0]
+    assert first_day["avg_temp"] == 10.0  # None пропущен
+    assert first_day["avg_humidity"] == 55.0  # влажность из обеих записей
 
 
 async def test_weekly_analysis(make_user):

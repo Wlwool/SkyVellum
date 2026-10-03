@@ -51,6 +51,6 @@ def make_user(db):
             )
             session.add(user)
             await session.commit()
-            return user.id  # type: ignore[return-value]
+            return user.id
 
     return _make

@@ -39,7 +39,7 @@ async def get_weather_now(message: types.Message):
 
     # получение данных о погоде для города, который был выбран пользователем
     weather_data: dict[str, Any] | None = await weather_api.get_current_weather(
-        user.city  # type: ignore[arg-type]
+        user.city
     )
 
     if not weather_data:
@@ -49,7 +49,7 @@ async def get_weather_now(message: types.Message):
         )
         return
     await update_timezone_offset(
-        user.id,  # type: ignore[arg-type]
+        user.id,
         weather_data["timezone"],
     )
 

@@ -26,7 +26,7 @@ async def cmd_start(message: types.Message) -> None:
         if user:
             if user:
                 if not user.is_active:
-                    user.is_active = True  # type: ignore[assignment]
+                    user.is_active = True
                     await session.commit()
             await message.answer(
                 f"Привет, {message.from_user.first_name}!\n"

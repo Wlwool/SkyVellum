@@ -60,13 +60,13 @@ async def process_city(message: types.Message, state: FSMContext) -> None:
 
     async with async_session() as session:
         # Проверка, зарегистрирован ли пользователь
-        stmt = select(User).where(User.user_id == user_id)  # type: ignore
+        stmt = select(User).where(User.user_id == user_id)
         result = await session.execute(stmt)
         existing_user = result.scalar_one_or_none()
 
         if existing_user:
             # Если пользователь уже зарегистрирован, обновляем данные
-            existing_user.city = city  # type: ignore[assignment]
+            existing_user.city = city
             existing_user.latitude = weather_data["lat"]
             existing_user.longitude = weather_data["lon"]
             existing_user.timezone_offset = weather_data["timezone"]

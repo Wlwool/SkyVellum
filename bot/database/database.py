@@ -15,16 +15,18 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import DeclarativeBase
 
 from bot.config.config import Config
 
 config = Config()
 
 
-Base = declarative_base()  # базовый класс для моделей данных
+class Base(DeclarativeBase):
+    """Базовый класс для моделей данных."""
 
-# Создаем асинхронный движок и сессию для работы с базой данных
+
+# Создает асинхронный движок и сессию для работы с БД
 engine = create_async_engine(config.DB_URL, echo=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -36,7 +38,6 @@ async def get_session() -> AsyncGenerator[AsyncSession]:
     Возвращает:
         AsyncSession: Асинхронная сессия SQLAlchemy
 
-    Особенности:
     - Автоматически закрывает сессию после использования
     - Поддерживает async context manager
     """

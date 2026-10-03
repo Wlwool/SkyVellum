@@ -1,11 +1,13 @@
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
-from sqlalchemy.orm import relationship
+from datetime import datetime
+
+from sqlalchemy import BigInteger, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from bot.database.database import Base
 
 
-class User(Base):  # type: ignore[valid-type,misc]
+class User(Base):
     """
     Модель для хранения данных о пользователях бота.
     Атрибуты:
@@ -25,25 +27,25 @@ class User(Base):  # type: ignore[valid-type,misc]
 
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, unique=True, nullable=False)
-    username = Column(String)
-    first_name = Column(String)
-    last_name = Column(String)
-    city = Column(String, nullable=False)
-    latitude = Column(Float)
-    longitude = Column(Float)
-    timezone_offset = Column(Integer, nullable=False, default=0, server_default="0")
-    is_active = Column(Boolean, default=True)
-    registered_at = Column(DateTime, server_default=func.now())
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, unique=True)
+    username: Mapped[str | None]
+    first_name: Mapped[str | None]
+    last_name: Mapped[str | None]
+    city: Mapped[str]
+    latitude: Mapped[float | None]
+    longitude: Mapped[float | None]
+    timezone_offset: Mapped[int] = mapped_column(default=0, server_default="0")
+    is_active: Mapped[bool | None] = mapped_column(default=True)
+    registered_at: Mapped[datetime | None] = mapped_column(server_default=func.now())
 
-    weather_data = relationship("WeatherData", back_populates="user")
+    weather_data: Mapped[list["WeatherData"]] = relationship(back_populates="user")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<User(id={self.id}, user_id={self.user_id}, city={self.city})>"
 
 
-class WeatherData(Base):  # type: ignore[valid-type,misc]
+class WeatherData(Base):
     """
     Модель для хранения данных о погоде.
     Атрибуты:
@@ -63,20 +65,22 @@ class WeatherData(Base):  # type: ignore[valid-type,misc]
 
     __tablename__ = "weather_data"
 
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
-    temperature = Column(Float)
-    feels_like = Column(Float)
-    pressure = Column(Integer)
-    humidity = Column(Integer)
-    wind_speed = Column(Float)
-    description = Column(String)
-    date = Column(DateTime, default=func.now())
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE")
+    )
+    temperature: Mapped[float | None]
+    feels_like: Mapped[float | None]
+    pressure: Mapped[int | None]
+    humidity: Mapped[int | None]
+    wind_speed: Mapped[float | None]
+    description: Mapped[str | None]
+    date: Mapped[datetime | None] = mapped_column(default=func.now())
 
     # связь с таблицей пользователей
-    user = relationship("User", back_populates="weather_data")
+    user: Mapped["User"] = relationship(back_populates="weather_data")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"<WeatherData(id={self.id}, user_id={self.user_id}, "
             f"temperature={self.temperature}, date={self.date})>"
