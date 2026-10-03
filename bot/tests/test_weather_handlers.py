@@ -3,6 +3,8 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from aiogram import types
+from aiogram.exceptions import TelegramBadRequest
 from sqlalchemy import func, select
 
 from bot.database.database import async_session
@@ -189,3 +191,127 @@ async def test_forecast_success_text(make_user):
     assert "📅 03.10:" in text
     assert "Температура: 5.0°C (от 1.0°C до 9.0°C)" in text
     assert "📅 04.10:" in text
+
+
+def _callback(data: str) -> MagicMock:
+    """Подделка нажатия инлайн-кнопки: данные, автор и сообщение с edit_text."""
+    callback = MagicMock()
+    callback.data = data
+    callback.from_user = SimpleNamespace(id=TELEGRAM_ID)
+    callback.message = MagicMock(spec=types.Message)
+    callback.message.edit_text = AsyncMock()
+    callback.answer = AsyncMock()
+    return callback
+
+
+def _forecast_from_today(count: int = 5) -> dict:
+    """Прогноз на count дней, начиная с сегодняшней даты (UTC, пояс 0)."""
+    today = datetime.datetime.now(datetime.UTC).date()
+    template = _forecast_data()["forecasts"][0]
+    return {
+        **_forecast_data(),
+        "forecasts": [
+            {**template, "date": today + datetime.timedelta(days=i)}
+            for i in range(count)
+        ],
+    }
+
+
+def _edited_text(callback: MagicMock) -> str:
+    callback.message.edit_text.assert_awaited_once()
+    return str(callback.message.edit_text.call_args.args[0])
+
+
+async def test_forecast_callback_5days_edits_message(make_user):
+    await make_user(user_id=TELEGRAM_ID)
+    callback = _callback("forecast:5days")
+
+    with patch.object(
+        weather.weather_api,
+        "get_forecast",
+        new=AsyncMock(return_value=_forecast_from_today()),
+    ):
+        await weather.on_forecast_period(callback)
+
+    text = _edited_text(callback)
+    assert "Прогноз погоды на 5 дней" in text
+    assert text.count("📅") == 5
+    callback.answer.assert_awaited_once()
+
+
+async def test_forecast_callback_tomorrow_shows_only_tomorrow(make_user):
+    await make_user(user_id=TELEGRAM_ID)
+    callback = _callback("forecast:tomorrow")
+    today = datetime.datetime.now(datetime.UTC).date()
+
+    with patch.object(
+        weather.weather_api,
+        "get_forecast",
+        new=AsyncMock(return_value=_forecast_from_today()),
+    ):
+        await weather.on_forecast_period(callback)
+
+    text = _edited_text(callback)
+    assert text.count("📅") == 1
+    assert (today + datetime.timedelta(days=1)).strftime("%d.%m") in text
+    assert today.strftime("%d.%m") not in text
+
+
+async def test_forecast_callback_now_shows_current_weather(make_user):
+    await make_user(user_id=TELEGRAM_ID)
+    callback = _callback("forecast:now")
+
+    with patch.object(
+        weather.weather_api,
+        "get_current_weather",
+        new=AsyncMock(return_value=_weather(0)),
+    ):
+        await weather.on_forecast_period(callback)
+
+    assert "Погода в городе Новосибирск" in _edited_text(callback)
+
+
+@pytest.mark.parametrize(("error", "expected"), API_ERRORS)
+async def test_forecast_callback_api_errors(make_user, error, expected):
+    """Сбой OpenWeather: прогноз на экране не трогаем, показываем всплывающее окно."""
+    await make_user(user_id=TELEGRAM_ID)
+    callback = _callback("forecast:5days")
+
+    with patch.object(
+        weather.weather_api, "get_forecast", new=AsyncMock(side_effect=error)
+    ):
+        await weather.on_forecast_period(callback)
+
+    callback.message.edit_text.assert_not_awaited()
+    callback.answer.assert_awaited_once()
+    assert expected in callback.answer.call_args.args[0]
+
+
+async def test_forecast_callback_not_modified_is_ignored(make_user):
+    """Повторное нажатие той же кнопки: Telegram отклоняет правку, бот молчит."""
+    await make_user(user_id=TELEGRAM_ID)
+    callback = _callback("forecast:5days")
+    callback.message.edit_text = AsyncMock(
+        side_effect=TelegramBadRequest(
+            method=MagicMock(), message="Bad Request: message is not modified"
+        )
+    )
+
+    with patch.object(
+        weather.weather_api,
+        "get_forecast",
+        new=AsyncMock(return_value=_forecast_from_today()),
+    ):
+        await weather.on_forecast_period(callback)
+
+    callback.answer.assert_awaited_once()
+
+
+async def test_forecast_callback_unregistered_user(make_user):
+    """Пользователя нет в БД: просим зарегистрироваться, сообщение не меняем."""
+    callback = _callback("forecast:5days")
+
+    await weather.on_forecast_period(callback)
+
+    callback.message.edit_text.assert_not_awaited()
+    callback.answer.assert_awaited_once()

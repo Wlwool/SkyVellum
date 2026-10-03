@@ -1,14 +1,16 @@
 import logging
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from aiogram import Dispatcher, F, types
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.future import select
 
 from bot.database.database import async_session
 from bot.database.models import User
 from bot.handlers.texts import CITY_NOT_FOUND_SAVED, SERVICE_UNAVAILABLE
+from bot.keyboards.inline import get_forecast_keyboard
 from bot.keyboards.reply import get_start_keyboard, get_weather_keyboard
 from bot.services.analytics import WeatherAnalytics
 from bot.services.users import update_timezone_offset
@@ -16,6 +18,12 @@ from bot.services.weather_api import CityNotFoundError, WeatherAPIError, weather
 from bot.utils.timeutils import format_local_time
 
 logger = logging.getLogger(__name__)
+
+PERIOD_TITLES = {
+    "tomorrow": "Прогноз погоды на завтра",
+    "3days": "Прогноз погоды на 3 дня",
+    "5days": "Прогноз погоды на 5 дней",
+}
 
 
 def _api_error_text(error: WeatherAPIError) -> str:
@@ -158,6 +166,54 @@ async def get_weather_forecast(message: types.Message) -> None:
         await message.answer("Произошла внутренняя ошибка при получении прогноза.")
 
 
+async def on_forecast_period(callback: types.CallbackQuery) -> None:
+    """Нажатие кнопки периода под прогнозом: правим то же сообщение."""
+    message = callback.message
+    if callback.data is None or not isinstance(message, types.Message):
+        await callback.answer()
+        return
+    period = callback.data.removeprefix("forecast:")
+    if period != "now" and period not in PERIOD_TITLES:
+        await callback.answer()
+        return
+
+    async with async_session() as session:
+        stmt = select(User).where(User.user_id == callback.from_user.id)
+        result = await session.execute(stmt)
+        user = result.scalar_one_or_none()
+
+    if not user:
+        await callback.answer(
+            "Вы еще не зарегистрированы. Нажмите /start", show_alert=True
+        )
+        return
+
+    now_utc = datetime.now(UTC)
+    try:
+        if period == "now":
+            weather_data = await weather_api.get_current_weather(user.city)
+            text = _format_current_weather(weather_data, int(now_utc.timestamp()))
+        else:
+            forecast_data = await weather_api.get_forecast(user.city, days=5)
+            today = (now_utc + timedelta(seconds=user.timezone_offset)).date()
+            days = select_forecast_days(forecast_data["forecasts"], period, today)
+            if days:
+                text = _format_forecast(forecast_data, days, PERIOD_TITLES[period])
+            else:
+                text = "Для выбранного периода прогноза пока нет."
+    except WeatherAPIError as e:
+        await callback.answer(_api_error_text(e), show_alert=True)
+        return
+
+    try:
+        await message.edit_text(text, reply_markup=get_forecast_keyboard())
+    except TelegramBadRequest as e:
+        # та же кнопка нажата повторно: текст не изменился, это не ошибка
+        if "message is not modified" not in e.message:
+            raise
+    await callback.answer()
+
+
 async def get_weekly_analysis(message: types.Message) -> None:
     """Получение недельного анализа погоды"""
     if message.from_user is None:
@@ -242,3 +298,4 @@ def register_weather_handlers(dp: Dispatcher):
     dp.message.register(get_weather_forecast, F.text == "Погода на 5 дней")
     dp.message.register(get_weekly_analysis, F.text == "Еженедельный анализ")
     dp.message.register(change_city, F.text == "Изменить город")
+    dp.callback_query.register(on_forecast_period, F.data.startswith("forecast:"))
