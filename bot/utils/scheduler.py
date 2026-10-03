@@ -9,12 +9,11 @@ from aiogram.exceptions import TelegramForbiddenError
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import update
-from sqlalchemy.future import select
 
 from bot.database.database import async_session
 from bot.database.models import User
 from bot.services.analytics import WeatherAnalytics
-from bot.services.users import update_timezone_offset
+from bot.services.users import get_active_users, update_timezone_offset
 from bot.services.weather_api import WeatherAPI
 from bot.utils.timeutils import is_local_time_due
 
@@ -36,13 +35,6 @@ async def _deactivate_user(user_pk: int) -> None:
         await session.commit()
 
 
-async def _get_active_users() -> list[User]:
-    """Все активные пользователи (is_active = True)."""
-    async with async_session() as session:
-        result = await session.execute(select(User).where(User.is_active.is_(True)))
-        return list(result.scalars().all())
-
-
 async def send_daily_weather(bot: Bot, users: Sequence[User] | None = None):
     """Отправляет ежедневный прогноз погоды.
     users - кому слать, если не задан, то всем активным пользователям
@@ -50,7 +42,7 @@ async def send_daily_weather(bot: Bot, users: Sequence[User] | None = None):
     logger.info("Запуск рассылки ежедневного прогноза погоды")
 
     if users is None:
-        users = await _get_active_users()
+        users = await get_active_users()
 
     for user in users:
         try:
@@ -112,7 +104,7 @@ async def send_weekly_analysis(bot: Bot, users: Sequence[User] | None = None):
     logger.info("Запуск рассылки еженедельного анализа погоды")
 
     if users is None:
-        users = await _get_active_users()
+        users = await get_active_users()
 
     for user in users:
         try:
@@ -229,7 +221,7 @@ async def send_due_broadcasts(bot: Bot, now_utc: datetime | None = None) -> None
     """
     if now_utc is None:
         now_utc = datetime.now(UTC)
-    users = await _get_active_users()
+    users = await get_active_users()
 
     daily = select_due_users(users, now_utc, DAILY_HOUR)
     if daily:
