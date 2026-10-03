@@ -41,7 +41,7 @@ async def send_daily_weather(bot: Bot):
         try:
             # получение прогноза погоды для города пользователя
             weather_data: dict[str, Any] | None = await weather_api.get_current_weather(
-                user.city  # type: ignore[arg-type]
+                user.city
             )
 
             if not weather_data:
@@ -51,13 +51,13 @@ async def send_daily_weather(bot: Bot):
                 )
                 continue
             await update_timezone_offset(
-                user.id,  # type: ignore[arg-type]
+                user.id,
                 weather_data["timezone"],
             )
 
             # сохранение данных о погоде для еженедельного анализа
             await WeatherAnalytics.save_weather_data_for_week_analysis(
-                user.id,  # type: ignore[arg-type]
+                user.id,
                 weather_data,
             )
 
@@ -73,7 +73,7 @@ async def send_daily_weather(bot: Bot):
                 f"Хорошего дня! 😊"
             )
             # отправка сообщения пользователю
-            await bot.send_message(user.user_id, message)  # type: ignore[arg-type]
+            await bot.send_message(user.user_id, message)
             logger.info(f"Отправлен прогноз погоды для пользователя {user.user_id}")
 
             # небольшая задержка, чтобы избежать слишком частых запросов к API
@@ -83,7 +83,7 @@ async def send_daily_weather(bot: Bot):
             logger.warning(
                 f"Пользователь {user.user_id} заблокировал бота, деактивируем"
             )
-            await _deactivate_user(user.id)  # type: ignore[arg-type]
+            await _deactivate_user(user.id)
         except Exception as e:
             logger.error(
                 f"Ошибка при отправке прогноза погоды пользователю {user.user_id}: {e}"
@@ -104,7 +104,7 @@ async def send_weekly_analysis(bot: Bot):
             # получение анализа погоды за неделю
             # (прошлая неделя и прогноз на следующие 5 дней)
             analysis_data = await WeatherAnalytics.get_weekly_analysis_with_forecast(
-                user.id,  # type: ignore[arg-type]
+                user.id,
                 weather_api,
             )
 
@@ -174,7 +174,7 @@ async def send_weekly_analysis(bot: Bot):
                 message += f"🌬️ Ветер: {summary['avg_wind']:.1f} м/с\n"
 
             # Отправляем сообщение пользователю
-            await bot.send_message(user.user_id, message)  # type: ignore[arg-type]
+            await bot.send_message(user.user_id, message)
             logger.info(
                 f"Отправлен еженедельный анализ погоды пользователю {user.user_id}"
             )
@@ -184,7 +184,7 @@ async def send_weekly_analysis(bot: Bot):
             logger.warning(
                 f"Пользователь {user.user_id} заблокировал бота, деактивируем"
             )
-            await _deactivate_user(user.id)  # type: ignore[arg-type]
+            await _deactivate_user(user.id)
         except Exception as e:
             logger.error(
                 f"Ошибка при отправке еженедельного анализа "
