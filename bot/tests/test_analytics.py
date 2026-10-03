@@ -9,6 +9,7 @@ import pytest
 from bot.database.database import async_session
 from bot.database.models import WeatherData
 from bot.services.analytics import WeatherAnalytics
+from bot.services.weather_api import WeatherServiceError
 
 
 def test_weekly_data_skips_missing_values():
@@ -185,3 +186,29 @@ async def test_weekly_analysis_with_forecast(make_user):
     assert result["past_week"] is not None
     assert result["next_week_forecast"]["days_count"] == 1
     weather_api.get_forecast.assert_awaited_once_with("Москва", days=5)
+
+
+async def test_weekly_analysis_with_forecast_api_down(make_user):
+    """Прогноз недоступен: в рассылку всё равно идёт анализ прошлой недели."""
+    user_id = await make_user(user_id=889, city="Москва")
+    weather = {
+        "temperature": 10.0,
+        "feels_like": 9.0,
+        "pressure": 1010,
+        "humidity": 70,
+        "wind_speed": 3.0,
+        "description": "Облачно",
+    }
+    for _ in range(2):
+        await WeatherAnalytics.save_weather_data_for_week_analysis(user_id, weather)
+
+    weather_api = MagicMock()
+    weather_api.get_forecast = AsyncMock(side_effect=WeatherServiceError("сбой"))
+
+    result = await WeatherAnalytics.get_weekly_analysis_with_forecast(
+        user_id, weather_api
+    )
+
+    assert result is not None
+    assert result["past_week"] is not None
+    assert result["next_week_forecast"] is None

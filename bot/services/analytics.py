@@ -7,6 +7,7 @@ from sqlalchemy.future import select
 
 from bot.database.database import async_session
 from bot.database.models import User, WeatherData
+from bot.services.weather_api import WeatherAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -204,7 +205,11 @@ class WeatherAnalytics:
                 return None
 
             past_week_analysis = await WeatherAnalytics.get_weekly_analysis(user_id)
-            forecast_data = await weather_api.get_forecast(user.city, days=5)
+            try:
+                forecast_data = await weather_api.get_forecast(user.city, days=5)
+            except WeatherAPIError as e:
+                logger.error(f"Не удалось получить прогноз для {user.city}: {e}")
+                forecast_data = None
 
             if not forecast_data:
                 logger.error(f"Ошибка при получении прогноза погоды для {user.city}")

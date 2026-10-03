@@ -1,7 +1,14 @@
 import datetime
 from unittest.mock import patch
 
-from bot.services.weather_api import WeatherAPI
+import aiohttp
+import pytest
+
+from bot.services.weather_api import (
+    CityNotFoundError,
+    WeatherAPI,
+    WeatherServiceError,
+)
 
 CURRENT_PAYLOAD = {
     "name": "Москва",
@@ -42,11 +49,13 @@ def _forecast_payload(days: int = 3, per_day: int = 8, start: int = _DAY0) -> di
 
 
 class FakeResponse:
-    def __init__(self, status: int, payload: dict):
+    def __init__(self, status: int, payload: dict | None):
         self.status = status
         self._payload = payload
 
     async def json(self) -> dict:
+        if self._payload is None:
+            raise ValueError("тело ответа не JSON")
         return self._payload
 
     async def __aenter__(self):
@@ -59,8 +68,9 @@ class FakeResponse:
 class FakeSession:
     """Подмена aiohttp.ClientSession: запоминает параметры запроса."""
 
-    def __init__(self, response: FakeResponse):
+    def __init__(self, response: FakeResponse, error: Exception | None = None):
         self._response = response
+        self._error = error
         self.calls: list[tuple[str, dict]] = []
 
     async def __aenter__(self):
@@ -71,11 +81,13 @@ class FakeSession:
 
     def get(self, url: str, params: dict | None = None) -> FakeResponse:
         self.calls.append((url, params or {}))
+        if self._error is not None:
+            raise self._error
         return self._response
 
 
-def _fake_http(status: int, payload: dict):
-    session = FakeSession(FakeResponse(status, payload))
+def _fake_http(status: int, payload: dict | None, error: Exception | None = None):
+    session = FakeSession(FakeResponse(status, payload), error)
     patcher = patch(
         "bot.services.weather_api.aiohttp.ClientSession", return_value=session
     )
@@ -114,10 +126,8 @@ async def test_get_forecast():
 
 async def test_invalid_city():
     patcher, _ = _fake_http(404, {"cod": "404", "message": "city not found"})
-    with patcher:
-        data = await WeatherAPI().get_current_weather("InvalidCityName")
-
-    assert data is None
+    with patcher, pytest.raises(CityNotFoundError):
+        await WeatherAPI().get_current_weather("InvalidCityName")
 
 
 async def test_forecast_days_use_city_timezone():
@@ -146,3 +156,47 @@ async def test_forecast_skips_partial_days():
         datetime.date(2026, 9, 22),
         datetime.date(2026, 9, 23),
     ]
+
+
+async def test_forecast_invalid_city():
+    patcher, _ = _fake_http(404, {"cod": "404", "message": "city not found"})
+    with patcher, pytest.raises(CityNotFoundError):
+        await WeatherAPI().get_forecast("InvalidCityName")
+
+
+@pytest.mark.parametrize("status", [401, 429, 500, 503])
+async def test_service_errors(status):
+    """Неверный ключ, лимит запросов и сбои сервера: не «город не найден»."""
+    patcher, _ = _fake_http(status, {"cod": status, "message": "error"})
+    with patcher, pytest.raises(WeatherServiceError):
+        await WeatherAPI().get_current_weather("Москва")
+
+
+async def test_error_response_without_json_body():
+    """Шлюз вернул не JSON: это сбой сервиса, а не падение с ValueError."""
+    patcher, _ = _fake_http(502, None)
+    with patcher, pytest.raises(WeatherServiceError):
+        await WeatherAPI().get_current_weather("Москва")
+
+
+@pytest.mark.parametrize(
+    "error", [aiohttp.ClientConnectionError("нет сети"), TimeoutError()]
+)
+async def test_network_error(error):
+    patcher, _ = _fake_http(200, {}, error=error)
+    with patcher, pytest.raises(WeatherServiceError):
+        await WeatherAPI().get_forecast("Москва")
+
+
+async def test_unexpected_payload_format():
+    """Ответ 200, но без нужных полей: сбой сервиса, а не «город не найден»."""
+    patcher, _ = _fake_http(200, {"name": "Москва"})
+    with patcher, pytest.raises(WeatherServiceError):
+        await WeatherAPI().get_current_weather("Москва")
+
+
+async def test_empty_city_is_not_found():
+    """Пустое название: OpenWeather отвечает 400 Nothing to geocode"""
+    patcher, _ = _fake_http(400, {"cod": "400", "message": "Nothing to geocode"})
+    with patcher, pytest.raises(CityNotFoundError):
+        await WeatherAPI().get_current_weather("")

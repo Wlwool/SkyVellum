@@ -5,14 +5,17 @@ from sqlalchemy import select
 from bot.database.database import async_session
 from bot.database.models import User
 from bot.services.timezones import refresh_timezone_offsets
+from bot.services.weather_api import CityNotFoundError
 
 OFFSETS = {"Москва": 10800, "Омск": 21600}
 
 
-async def _lookup(city: str) -> dict[str, int] | None:
+async def _lookup(city: str) -> dict[str, int]:
     """Подделка get_current_weather: знает только города из OFFSETS."""
     offset = OFFSETS.get(city)
-    return None if offset is None else {"timezone": offset}
+    if offset is None:
+        raise CityNotFoundError(city)
+    return {"timezone": offset}
 
 
 def _api() -> AsyncMock:
