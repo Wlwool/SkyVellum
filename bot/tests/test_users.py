@@ -2,7 +2,11 @@ from sqlalchemy import select
 
 from bot.database.database import async_session
 from bot.database.models import User
-from bot.services.users import get_user_by_telegram_id, update_timezone_offset
+from bot.services.users import (
+    get_user_by_telegram_id,
+    set_user_active,
+    update_timezone_offset,
+)
 
 
 async def _offset(user_pk: int) -> int:
@@ -11,6 +15,12 @@ async def _offset(user_pk: int) -> int:
             select(User.timezone_offset).where(User.id == user_pk)
         )
         return int(result.scalar_one())
+
+
+async def _is_active(user_pk: int) -> bool | None:
+    async with async_session() as session:
+        result = await session.execute(select(User.is_active).where(User.id == user_pk))
+        return result.scalar_one()
 
 
 async def test_update_timezone_offset(make_user):
@@ -63,3 +73,32 @@ async def test_get_user_by_telegram_id_ignores_internal_id(make_user):
     user_pk = await make_user(user_id=111)
 
     assert await get_user_by_telegram_id(user_pk) is None
+
+
+async def test_set_user_active_deactivates(make_user):
+    """Бот заблокирован: пользователь становится неактивным."""
+    user_pk = await make_user()
+
+    await set_user_active(user_pk, False)
+
+    assert await _is_active(user_pk) is False
+
+
+async def test_set_user_active_reactivates(make_user):
+    """Пользователь вернулся по /start: снова активен."""
+    user_pk = await make_user(is_active=False)
+
+    await set_user_active(user_pk, True)
+
+    assert await _is_active(user_pk) is True
+
+
+async def test_set_user_active_only_target_user(make_user):
+    """Остальные пользователи не затрагиваются."""
+    first = await make_user(user_id=111)
+    second = await make_user(user_id=222)
+
+    await set_user_active(first, False)
+
+    assert await _is_active(first) is False
+    assert await _is_active(second) is True

@@ -34,3 +34,15 @@ async def get_user_by_telegram_id(telegram_id: int) -> User | None:
     async with async_session() as session:
         result = await session.execute(select(User).where(User.user_id == telegram_id))
         return result.scalar_one_or_none()
+
+
+async def set_user_active(user_pk: int, is_active: bool) -> None:
+    """Включает или выключает пользователя. user_pk - внутренний User.id.
+    False: бот заблокирован, рассылки пропускаются.
+    True: человек вернулся по /start.
+    """
+    async with async_session() as session:
+        await session.execute(
+            update(User).where(User.id == user_pk).values(is_active=is_active)
+        )
+        await session.commit()

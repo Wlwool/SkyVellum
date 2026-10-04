@@ -8,12 +8,10 @@ from aiogram import Bot
 from aiogram.exceptions import TelegramForbiddenError
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from sqlalchemy import update
 
-from bot.database.database import async_session
 from bot.database.models import User
 from bot.services.analytics import WeatherAnalytics
-from bot.services.users import get_active_users, update_timezone_offset
+from bot.services.users import get_active_users, set_user_active, update_timezone_offset
 from bot.services.weather_api import WeatherAPIError, weather_api
 from bot.utils.timeutils import is_local_time_due
 
@@ -24,15 +22,6 @@ DAILY_HOUR = 8  # местное время утренней рассылки
 WEEKLY_HOUR = 12  # местное время воскресной рассылки
 SUNDAY = 6  # datetime.weekday(): понедельник = 0
 TICK_MINUTES = 15  # шаг планировщика = ширина окна в is_local_time_due
-
-
-async def _deactivate_user(user_pk: int) -> None:
-    """Помечает пользователя неактивным (бот заблокирован). user_pk - User.id."""
-    async with async_session() as session:
-        await session.execute(
-            update(User).where(User.id == user_pk).values(is_active=False)
-        )
-        await session.commit()
 
 
 async def send_daily_weather(bot: Bot, users: Sequence[User] | None = None):
@@ -88,7 +77,7 @@ async def send_daily_weather(bot: Bot, users: Sequence[User] | None = None):
             logger.warning(
                 f"Пользователь {user.user_id} заблокировал бота, деактивируем"
             )
-            await _deactivate_user(user.id)
+            await set_user_active(user.id, False)
         except Exception as e:
             logger.error(
                 f"Ошибка при отправке прогноза погоды пользователю {user.user_id}: {e}"
@@ -189,7 +178,7 @@ async def send_weekly_analysis(bot: Bot, users: Sequence[User] | None = None):
             logger.warning(
                 f"Пользователь {user.user_id} заблокировал бота, деактивируем"
             )
-            await _deactivate_user(user.id)
+            await set_user_active(user.id, False)
         except Exception as e:
             logger.error(
                 f"Ошибка при отправке еженедельного анализа "
