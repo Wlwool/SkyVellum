@@ -332,3 +332,56 @@ async def test_forecast_has_period_buttons(make_user):
 
     markup = message.answer.call_args.kwargs["reply_markup"]
     assert isinstance(markup, InlineKeyboardMarkup)
+
+
+def _weekly_analysis() -> dict:
+    """Ответ WeatherAnalytics.get_weekly_analysis: два дня и тенденции."""
+    return {
+        "city": "Москва",
+        "period": {
+            "start": datetime.date(2026, 10, 1),
+            "end": datetime.date(2026, 10, 2),
+        },
+        "trends": {
+            "temperature": {"description": "повышение", "value": 5.0},
+            "humidity": {"description": "понижение", "value": -5.0},
+            "wind": {"description": "ослабление", "value": -2.5},
+        },
+        "daily_analysis": [
+            {
+                "date": datetime.date(2026, 10, 1),
+                "avg_temp": 10.0,
+                "avg_humidity": 70.0,
+                "avg_wind": 3.0,
+            },
+            {
+                "date": datetime.date(2026, 10, 2),
+                "avg_temp": 15.0,
+                "avg_humidity": 65.0,
+                "avg_wind": 0.5,
+            },
+        ],
+    }
+
+
+async def test_weekly_analysis_success_text(make_user):
+    """Страховка: полный текст кнопки «Еженедельный анализ» до и после выноса."""
+    await make_user(user_id=TELEGRAM_ID)
+    message = _message()
+
+    with patch.object(
+        weather.WeatherAnalytics,
+        "get_weekly_analysis",
+        new=AsyncMock(return_value=_weekly_analysis()),
+    ):
+        await weather.get_weekly_analysis(message)
+
+    text = _answered_text(message)
+    assert "Анализ погоды за период 01.10 - 02.10 для города Москва:" in text
+    assert "Тенденции за неделю:" in text
+    assert "Температура: повышение (5.0°C)" in text
+    assert "Влажность: понижение (-5.0%)" in text
+    assert "Ветер: ослабление (-2.5 м/с)" in text
+    assert "Данные по дням:" in text
+    assert "- 01.10: 10.0°C, влажность 70%, ветер 3.0 м/с" in text
+    assert "- 02.10: 15.0°C, влажность 65%, ветер 0.5 м/с" in text

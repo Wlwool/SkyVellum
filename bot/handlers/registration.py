@@ -4,12 +4,10 @@ from typing import Any
 from aiogram import Dispatcher, F, types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from sqlalchemy.future import select
 
-from bot.database.database import async_session
-from bot.database.models import User
 from bot.handlers.texts import SERVICE_UNAVAILABLE
 from bot.keyboards.reply import get_start_keyboard
+from bot.services.users import save_user
 from bot.services.weather_api import CityNotFoundError, WeatherServiceError, weather_api
 
 logger = logging.getLogger(__name__)
@@ -55,53 +53,33 @@ async def process_city(message: types.Message, state: FSMContext) -> None:
         await message.answer(SERVICE_UNAVAILABLE)
         return
 
-    # Получение информации о пользователе
+    # Сохранение пользователя: новый создаётся, существующему меняется город
     user_id = message.from_user.id
-    username = message.from_user.username
-    first_name = message.from_user.first_name
-    last_name = message.from_user.last_name
+    is_new = await save_user(
+        user_id,
+        username=message.from_user.username,
+        first_name=message.from_user.first_name,
+        last_name=message.from_user.last_name,
+        city=city,
+        latitude=weather_data["lat"],
+        longitude=weather_data["lon"],
+        timezone_offset=weather_data["timezone"],
+    )
 
-    async with async_session() as session:
-        # Проверка, зарегистрирован ли пользователь
-        stmt = select(User).where(User.user_id == user_id)
-        result = await session.execute(stmt)
-        existing_user = result.scalar_one_or_none()
-
-        if existing_user:
-            # Если пользователь уже зарегистрирован, обновляем данные
-            existing_user.city = city
-            existing_user.latitude = weather_data["lat"]
-            existing_user.longitude = weather_data["lon"]
-            existing_user.timezone_offset = weather_data["timezone"]
-            await session.commit()
-            logger.info(f"Обновление данных пользователя ({user_id}), город: {city}")
-            await message.answer(
-                f"Ваш город успешно обновлен. "
-                f"Теперь вы будете получать информацию о погоде для города {city}.",
-                reply_markup=get_start_keyboard(is_registered=True),
-            )
-        else:
-            # Если пользователь не зарегистрирован, создаем нового пользователя
-            new_user = User(
-                user_id=user_id,
-                username=username,
-                first_name=first_name,
-                last_name=last_name,
-                city=city,
-                latitude=weather_data["lat"],
-                longitude=weather_data["lon"],
-                timezone_offset=weather_data["timezone"],
-            )
-            session.add(new_user)
-            await session.commit()
-            logger.info(
-                f"Зарегистрирован новый пользователь ({user_id}), город: {city}"
-            )
-            await message.answer(
-                f"Вы успешно зарегистрированы! "
-                f"Теперь вы будете получать информацию о погоде для города {city}.",
-                reply_markup=get_start_keyboard(is_registered=True),
-            )
+    if is_new:
+        logger.info(f"Зарегистрирован новый пользователь ({user_id}), город: {city}")
+        await message.answer(
+            f"Вы успешно зарегистрированы! "
+            f"Теперь вы будете получать информацию о погоде для города {city}.",
+            reply_markup=get_start_keyboard(is_registered=True),
+        )
+    else:
+        logger.info(f"Обновление данных пользователя ({user_id}), город: {city}")
+        await message.answer(
+            f"Ваш город успешно обновлен. "
+            f"Теперь вы будете получать информацию о погоде для города {city}.",
+            reply_markup=get_start_keyboard(is_registered=True),
+        )
     # Очистка состояния FSM после успешной регистрации
     await state.clear()
 
