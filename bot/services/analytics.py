@@ -122,53 +122,19 @@ class WeatherAnalytics:
             # Сортировка данных по дате
             daily_analysis.sort(key=lambda x: x["date"])
 
-            # Определение тенденций
+            # Определение тенденций: первые дни недели сравниваются с последними
             if len(daily_analysis) >= 2:
-                days_for_trend = min(2, len(daily_analysis) // 2)
-
-                first_days = daily_analysis[:days_for_trend]
-                last_days = daily_analysis[-days_for_trend:]
-
-                first_avg_temp = sum(d["avg_temp"] for d in first_days) / len(
-                    first_days
-                )
-                last_avg_temp = sum(d["avg_temp"] for d in last_days) / len(last_days)
-
-                first_avg_humidity = sum(d["avg_humidity"] for d in first_days) / len(
-                    first_days
-                )
-                last_avg_humidity = sum(d["avg_humidity"] for d in last_days) / len(
-                    last_days
-                )
-
-                first_avg_wind = sum(d["avg_wind"] for d in first_days) / len(
-                    first_days
-                )
-                last_avg_wind = sum(d["avg_wind"] for d in last_days) / len(last_days)
-
-                temp_trend = last_avg_temp - first_avg_temp
-                humidity_trend = last_avg_humidity - first_avg_humidity
-                wind_trend = last_avg_wind - first_avg_wind
-
+                days = min(2, len(daily_analysis) // 2)
                 trends = {
-                    "temperature": {
-                        "value": round(temp_trend, 1),
-                        "description": WeatherAnalytics._get_trend_description(
-                            temp_trend, "temperature"
-                        ),
-                    },
-                    "humidity": {
-                        "value": round(humidity_trend, 1),
-                        "description": WeatherAnalytics._get_trend_description(
-                            humidity_trend, "humidity"
-                        ),
-                    },
-                    "wind": {
-                        "value": round(wind_trend, 1),
-                        "description": WeatherAnalytics._get_trend_description(
-                            wind_trend, "wind"
-                        ),
-                    },
+                    "temperature": WeatherAnalytics._calc_trend(
+                        daily_analysis, "avg_temp", "temperature", days
+                    ),
+                    "humidity": WeatherAnalytics._calc_trend(
+                        daily_analysis, "avg_humidity", "humidity", days
+                    ),
+                    "wind": WeatherAnalytics._calc_trend(
+                        daily_analysis, "avg_wind", "wind", days
+                    ),
                 }
             else:
                 trends = None
@@ -186,6 +152,23 @@ class WeatherAnalytics:
         except Exception as e:
             logger.error(f"Ошибка при анализе данных погоды: {e}", exc_info=True)
             return None
+
+    @staticmethod
+    def _calc_trend(
+        daily_analysis: list[dict[str, Any]], key: str, metric_type: str, days: int
+    ) -> dict[str, Any]:
+        """Тенденция одного показателя: среднее последних days дней минус среднее
+        первых days дней. key - поле дня (avg_temp и т.п.), metric_type - для текста.
+        """
+        first_days = daily_analysis[:days]
+        last_days = daily_analysis[-days:]
+        first_avg = sum(d[key] for d in first_days) / len(first_days)
+        last_avg = sum(d[key] for d in last_days) / len(last_days)
+        change = last_avg - first_avg
+        return {
+            "value": round(change, 1),
+            "description": WeatherAnalytics._get_trend_description(change, metric_type),
+        }
 
     @staticmethod
     async def get_weekly_analysis_with_forecast(

@@ -38,6 +38,60 @@ def test_weekly_data_skips_missing_values():
     assert first_day["avg_humidity"] == 55.0  # влажность из обеих записей
 
 
+def _record(day, temperature, humidity, wind_speed):
+    """Запись погоды в 08:00 UTC указанного дня октября 2026 (пояс города 0)."""
+    return SimpleNamespace(
+        date=datetime.datetime(2026, 10, day, 8),
+        temperature=temperature,
+        humidity=humidity,
+        wind_speed=wind_speed,
+    )
+
+
+def test_trends_values_and_descriptions():
+    """Четыре дня: сравниваем среднее первых двух дней с последними двумя."""
+    records = [
+        _record(1, 10.0, 80, 2.0),
+        _record(2, 12.0, 70, 3.0),
+        _record(3, 14.0, 60, 4.0),
+        _record(4, 18.0, 50, 6.0),
+    ]
+
+    result = WeatherAnalytics._analyze_weekly_data(records, "Москва", 0)
+
+    assert result is not None
+    assert result["trends"] == {
+        "temperature": {"value": 5.0, "description": "повышение"},
+        "humidity": {"value": -20.0, "description": "понижение"},
+        "wind": {"value": 2.5, "description": "усиление"},
+    }
+
+
+def test_trends_small_change_is_stable():
+    """Два дня: сравниваются по одному дню; изменение меньше 1 это стабильность."""
+    records = [_record(1, 10.0, 50, 3.0), _record(2, 10.4, 50, 3.0)]
+
+    result = WeatherAnalytics._analyze_weekly_data(records, "Москва", 0)
+
+    assert result is not None
+    assert result["trends"] == {
+        "temperature": {"value": 0.4, "description": "стабильность"},
+        "humidity": {"value": 0.0, "description": "стабильность"},
+        "wind": {"value": 0.0, "description": "стабильность"},
+    }
+
+
+def test_trends_none_when_only_one_day():
+    """Две записи за один день: день один, тенденций нет."""
+    records = [_record(1, 10.0, 50, 3.0), _record(1, 12.0, 60, 4.0)]
+
+    result = WeatherAnalytics._analyze_weekly_data(records, "Москва", 0)
+
+    assert result is not None
+    assert result["trends"] is None
+    assert result["period"]["start"] == result["period"]["end"]
+
+
 async def test_weekly_analysis(make_user):
     """Тенденции за неделю: теплеет, влажность падает, ветер слабеет."""
     user_id = await make_user(user_id=999999, city="TestCity")
