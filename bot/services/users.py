@@ -25,3 +25,12 @@ async def update_timezone_offset(user_pk: int, offset: int) -> None:
             .values(timezone_offset=offset)
         )
         await session.commit()
+
+
+async def get_user_by_telegram_id(telegram_id: int) -> User | None:
+    """Пользователь по Telegram ID (User.user_id) или None, если не найден.
+    Внутренний ключ User.id здесь не подходит: для него другой запрос.
+    """
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.user_id == telegram_id))
+        return result.scalar_one_or_none()

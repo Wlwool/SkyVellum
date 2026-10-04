@@ -5,15 +5,12 @@ from typing import Any
 from aiogram import Dispatcher, F, types
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
-from sqlalchemy.future import select
 
-from bot.database.database import async_session
-from bot.database.models import User
 from bot.handlers.texts import CITY_NOT_FOUND_SAVED, SERVICE_UNAVAILABLE
 from bot.keyboards.inline import get_forecast_keyboard
 from bot.keyboards.reply import get_start_keyboard, get_weather_keyboard
 from bot.services.analytics import WeatherAnalytics
-from bot.services.users import update_timezone_offset
+from bot.services.users import get_user_by_telegram_id, update_timezone_offset
 from bot.services.weather_api import CityNotFoundError, WeatherAPIError, weather_api
 from bot.utils.timeutils import format_local_time
 
@@ -98,13 +95,9 @@ async def get_weather_now(message: types.Message):
     """Получение текущей информации о погоде"""
     if message.from_user is None:
         return
-    user_id = message.from_user.id
 
     # получение данных о пользователе
-    async with async_session() as session:
-        stmt = select(User).where(User.user_id == user_id)
-        result = await session.execute(stmt)
-        user = result.scalar_one_or_none()
+    user = await get_user_by_telegram_id(message.from_user.id)
 
     if not user:
         await message.answer(
@@ -135,13 +128,8 @@ async def get_weather_forecast(message: types.Message) -> None:
     if message.from_user is None:
         return
     try:
-        user_id = message.from_user.id
-
         # получение данных о пользователе
-        async with async_session() as session:
-            stmt = select(User).where(User.user_id == user_id)
-            result = await session.execute(stmt)
-            user = result.scalar_one_or_none()
+        user = await get_user_by_telegram_id(message.from_user.id)
 
         if not user:
             await message.answer(
@@ -177,10 +165,7 @@ async def on_forecast_period(callback: types.CallbackQuery) -> None:
         await callback.answer()
         return
 
-    async with async_session() as session:
-        stmt = select(User).where(User.user_id == callback.from_user.id)
-        result = await session.execute(stmt)
-        user = result.scalar_one_or_none()
+    user = await get_user_by_telegram_id(callback.from_user.id)
 
     if not user:
         await callback.answer(
@@ -218,13 +203,9 @@ async def get_weekly_analysis(message: types.Message) -> None:
     """Получение недельного анализа погоды"""
     if message.from_user is None:
         return
-    user_id = message.from_user.id
 
     # Получение данных о пользователе
-    async with async_session() as session:
-        stmt = select(User).where(User.user_id == user_id)
-        result = await session.execute(stmt)
-        user = result.scalar_one_or_none()
+    user = await get_user_by_telegram_id(message.from_user.id)
 
     if not user:
         await message.answer(
