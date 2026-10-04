@@ -401,3 +401,69 @@ async def test_daily_api_error_skips_only_that_user(make_user):
     bot.send_message.assert_awaited_once()
     assert bot.send_message.call_args.args[0] == 222
     assert await _is_active(111) is True
+
+
+async def test_daily_message_text(make_user):
+    """Страховка: полный текст утренней рассылки до и после выноса форматирования."""
+    await make_user(user_id=111)
+    bot = AsyncMock()
+
+    with (
+        patch.object(
+            scheduler.weather_api,
+            "get_current_weather",
+            new=AsyncMock(return_value=_weather()),
+        ),
+        patch.object(
+            WeatherAnalytics,
+            "save_weather_data_for_week_analysis",
+            new=AsyncMock(),
+        ),
+    ):
+        await scheduler.send_daily_weather(bot=bot)
+
+    text = bot.send_message.call_args.args[1]
+    assert "Доброе утро! Вот прогноз погоды на утро для города Москва:" in text
+    assert "Температура: 10.0°C (ощущается как 8.0°C)" in text
+    assert "Влажность: 70%" in text
+    assert "Ветер: 3.0 м/с" in text
+    assert "Ясно" in text
+    assert "Хорошего дня!" in text
+
+
+async def test_weekly_message_text(make_user):
+    """Страховка: полный текст воскресной рассылки с трендами и прогнозом."""
+    await make_user(user_id=111)
+    bot = AsyncMock()
+
+    with _patch_analysis(_analysis()):
+        await scheduler.send_weekly_analysis(bot=bot)
+
+    text = bot.send_message.call_args.args[1]
+    assert "Еженедельный анализ погоды для города Москва:" in text
+    assert "Прошедшая неделя (01.04 - 07.04):" in text
+    assert "Тенденции за неделю:" in text
+    assert "Температура: повышение (5.0°C)" in text
+    assert "Влажность: понижение (-5.0%)" in text
+    assert "Ветер: ослабление (-2.5 м/с)" in text
+    assert "Прогноз на следующую неделю:" in text
+    assert "08.04: +16.0°C (от +12.0°C до +20.0°C)" in text
+    assert "55% |" in text
+    assert "2.8 м/с | Переменная облачность" in text
+    assert "если тенденция сохранится" in text
+    assert "Температура: +16.5°C (от +11.0°C до +21.0°C)" in text
+    assert "Влажность: 58%" in text
+
+
+async def test_weekly_message_without_past_week_and_forecast(make_user):
+    """Страховка: нет данных за неделю и прогноза, остаётся заголовок и пояснение."""
+    await make_user(user_id=111)
+    bot = AsyncMock()
+    analysis = {"city": "Москва", "past_week": None, "next_week_forecast": None}
+
+    with _patch_analysis(analysis):
+        await scheduler.send_weekly_analysis(bot=bot)
+
+    text = bot.send_message.call_args.args[1]
+    assert "Прошедшая неделя: недостаточно данных для анализа." in text
+    assert "Прогноз на следующую неделю" not in text
