@@ -46,3 +46,47 @@ async def set_user_active(user_pk: int, is_active: bool) -> None:
             update(User).where(User.id == user_pk).values(is_active=is_active)
         )
         await session.commit()
+
+
+async def save_user(
+    telegram_id: int,
+    *,
+    username: str | None,
+    first_name: str | None,
+    last_name: str | None,
+    city: str,
+    latitude: float,
+    longitude: float,
+    timezone_offset: int,
+) -> bool:
+    """Регистрирует пользователя или обновляет ему город.
+    Новому пользователю записываются все поля. У существующего меняются только
+    город, координаты и пояс, имя и username остаются прежними.
+    Возвращает True, если пользователь создан, и False, если обновлён.
+    """
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.user_id == telegram_id))
+        user = result.scalar_one_or_none()
+
+        if user:
+            user.city = city
+            user.latitude = latitude
+            user.longitude = longitude
+            user.timezone_offset = timezone_offset
+            await session.commit()
+            return False
+
+        session.add(
+            User(
+                user_id=telegram_id,
+                username=username,
+                first_name=first_name,
+                last_name=last_name,
+                city=city,
+                latitude=latitude,
+                longitude=longitude,
+                timezone_offset=timezone_offset,
+            )
+        )
+        await session.commit()
+        return True

@@ -1,9 +1,10 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from bot.database.database import async_session
 from bot.database.models import User
 from bot.services.users import (
     get_user_by_telegram_id,
+    save_user,
     set_user_active,
     update_timezone_offset,
 )
@@ -102,3 +103,54 @@ async def test_set_user_active_only_target_user(make_user):
 
     assert await _is_active(first) is False
     assert await _is_active(second) is True
+
+
+async def _save(telegram_id: int, city: str = "Тамбов") -> bool:
+    return await save_user(
+        telegram_id,
+        username="vasya",
+        first_name="Вася",
+        last_name=None,
+        city=city,
+        latitude=52.7,
+        longitude=41.4,
+        timezone_offset=10800,
+    )
+
+
+async def test_save_user_creates_new(db):
+    """Нового пользователя создаём со всеми полями; True = создан."""
+    assert await _save(111) is True
+
+    user = await get_user_by_telegram_id(111)
+    assert user is not None
+    assert user.city == "Тамбов"
+    assert user.username == "vasya"
+    assert user.latitude == 52.7
+    assert user.timezone_offset == 10800
+    assert user.is_active is True
+
+
+async def test_save_user_updates_existing(make_user):
+    """Существующему меняем город, координаты и пояс; False = обновлён."""
+    await make_user(user_id=111, city="Москва")
+
+    assert await _save(111, city="Тамбов") is False
+
+    user = await get_user_by_telegram_id(111)
+    assert user is not None
+    assert user.city == "Тамбов"
+    assert user.latitude == 52.7
+    assert user.longitude == 41.4
+    assert user.timezone_offset == 10800
+
+
+async def test_save_user_does_not_duplicate(make_user):
+    """Повторная регистрация не создаёт вторую строку."""
+    await make_user(user_id=111)
+
+    await _save(111)
+
+    async with async_session() as session:
+        result = await session.execute(select(func.count()).select_from(User))
+        assert result.scalar_one() == 1
